@@ -2,21 +2,20 @@
 
 class MyCar
 
-  attr_accessor :model, :color
-  attr_reader :year
+  attr_accessor :color  # accessor method definition.
+  attr_reader :year     # Ruby will define these implicitly.
 
   def initialize(model, year, color)
-    system 'clear'
-    @year = year
-    @color = color
-    @model = model
-    @speed = 0
+    self.color = color      # Call accessor (setter) method.
+    @year = year            # Only time and way to assign an attr_reader.
+    @model = model          # Instance variables defined and assigned
+    @speed = 0              # here in the initialization method.
     @engine_running = false
     @status = "Engine switched off and vehicle stationary"
   end
 
-  def info
-    "My car is a #{year} #{model} and is #{color} of color."
+  def info    # year and color accessed via accessor methods.
+    "My car is a #{year} #{@model} and is #{color} of color."
   end
 
   def engine_on
@@ -66,6 +65,7 @@ class MyCar
 
 end
 
+system 'clear'
 puts
 car1 = MyCar.new("Toyota Yaris", "2007", "Silver")
 puts car1.info
@@ -92,3 +92,32 @@ puts "The car as a #{car1.year} model."
 puts
 car1.spray_paint("Gold")
 puts "The color of the car is now #{car1.color}"
+
+# My car is a 2007 Toyota Yaris and is Silver of color.
+#
+# Status = Engine switched off and vehicle stationary.
+# Current Speed = 0 km/h.
+#
+# Engine started
+# Status = Stationary with engine idling.
+# Current Speed = 0 km/h.
+#
+# Attempting to speed up!
+# Attempting to speed up!
+# Status = Accelerating to 60 km/h.
+# Current Speed = 60 km/h.
+#
+# Applying breaks.
+# Applying breaks.
+# Status = Decelerating to 0 km/h.
+# Current Speed = 0 km/h.
+#
+# Applying breaks.
+# Status = Vehicle now stationary.
+# Current Speed = 0 km/h.
+#
+# The car is now painted Blue
+# The car as a 2007 model.
+#
+# The car has been sent off to be spray painted Gold
+# The color of the car is now Gold
