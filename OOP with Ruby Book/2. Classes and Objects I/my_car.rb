@@ -7,7 +7,7 @@ class MyCar
 
   def initialize(model, year, color)
     self.color = color      # Call accessor (setter) method.
-    @year = year            # Only time and way to assign an attr_reader.
+    @year = year        # Only time and way to assign an attr_reader.
     @model = model          # Instance variables defined and assigned
     @speed = 0              # here in the initialization method.
     @engine_running = false
