@@ -71,7 +71,9 @@ class Vehicle
   end
 
   def age_of_vehicle
-    calc_age    # Cannot use self.calc_age, as calc_age is a private method.
+    calc_age  # Cannot use self.calc_age, as calc_age is a private method.
+              # Remember that self.calc_age is the same as lumina.calc_age,
+              # which is a public method and NOT private!
   end
 
   private
