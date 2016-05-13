@@ -1,4 +1,4 @@
-# oop_guidelines_1
+# oop_guidelines
 
 # The classical approach to object oriented programming is:
 # 1. Write a textual description of the problem or exercise.
