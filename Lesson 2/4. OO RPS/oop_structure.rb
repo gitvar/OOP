@@ -56,11 +56,27 @@ class Player
 
   include Display
 
-  attr_accessor :move
+  attr_accessor :move, :name
 
   def initialize(player_type = :human)
     @player_type = player_type
     @move = nil
+    set_name
+  end
+
+  def set_name
+    n = nil
+    if human?
+      loop do
+        prompt "Please enter your name."
+        n = gets.chomp
+        break unless n.empty?
+        prompt "Please enter a valid name."
+      end
+      self.name = n
+    else
+      self.name = ["Hal", "R2D2", "CP3O", "Chappie", "Marvin"].sample
+    end
   end
 
   def human?
@@ -105,7 +121,7 @@ class RPSGame
   include Display
 
   attr_accessor :human, :computer
-  RPS_choices = { 'r' => 'Rock', 's' => 'Scissors', 'p' => 'Paper'}
+  RPS_choices = { 'r' => 'Rock', 'p' => 'Paper', 's' => 'Scissors'}
 
   def initialize
     @human = Player.new(:human)
@@ -126,19 +142,19 @@ class RPSGame
   def compare_moves
     if human.move == computer.move
       @winner = nil
-    elsif human.move == 's' && computer.move == 'p' ||
-          human.move == 'r' && computer.move == 's' ||
-          human.move == 'p' && computer.move == 'r'
-      @winner = "Player"
+    elsif human.move == 'r' && computer.move == 's' ||
+          human.move == 'p' && computer.move == 'r' ||
+          human.move == 's' && computer.move == 'p'
+      @winner = human.name
     else
-      @winner = "Computer"
+      @winner = computer.name
     end
   end
 
   def display_winner
     prompt
-    prompt "Player chose: #{RPS_choices[human.move]}."
-    prompt "Computer chose: #{RPS_choices[computer.move]}."
+    prompt "#{human.name} chose: #{RPS_choices[human.move]}."
+    prompt "#{computer.name} chose: #{RPS_choices[computer.move]}."
     compare_moves
     if @winner
       prompt
@@ -149,18 +165,45 @@ class RPSGame
     end
   end
 
-  def play
+  def play_again_1?
+    prompt
+    prompt "Play again? (S) to Stop, any other key to continue."
+    user_choice = gets.chomp.downcase
+    user_choice[0] == 's' ? false : true
+  end
+
+  def play_again_2?
+    user_choice = nil
     loop do
-      clear_screen
-      display_welcome_message
+      prompt
+      prompt "Want to play again? (y/n)."
+      user_choice = gets.chomp
+      break if ['y', 'n'].include?(user_choice.downcase)
+      prompt "Sorry, only 'y' or 'n'are valid inputs."
+    end
+    user_choice == 'y' ? true : false
+  end
+
+  def display_game_screen
+    clear_screen
+    prompt
+    prompt " Rock, Paper, Scissors"
+    prompt "======================="
+    prompt
+    prompt "Player 1: #{human.name}"
+    prompt "Player 2: #{computer.name}"
+    prompt
+  end
+
+  def play
+    clear_screen
+    display_welcome_message
+    loop do
+      display_game_screen
       human.choose
       computer.choose
       display_winner
-
-      prompt
-      prompt "Play again? RETURN to continue or (S) to Stop."
-      user_choice = gets.chomp.downcase
-      break if user_choice[0] == 's'
+      break unless play_again_2?
     end
     display_goodbye_message
   end
