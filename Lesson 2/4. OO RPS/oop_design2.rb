@@ -29,25 +29,35 @@ end
 class Human < Player
 
   def set_name
-    name = nil
+    n = nil
     prompt "Please enter your name."
     loop do
-      name = gets.chomp
-      break unless name.empty?
+      n = gets.chomp
+      break unless n.empty?
       prompt "Please enter a valid name."
     end
-    self.name = name
+    self.name = n
+  end
+
+  def correct_player_choice(choice)
+    if choice.length > 1
+      choice = choice.downcase.capitalize
+    else
+      choice = choice.downcase
+    end
   end
 
   def choose
     player_choice = nil
     loop do
       prompt "Choose one: (R)ock, (P)aper or (S)cissors"
-      player_choice = gets.chomp.to_s.downcase
-      break if %w(r p s).include?(player_choice[0])
+      player_choice = gets.chomp.to_s
+      break if Move::VALUES.include?(player_choice.downcase.capitalize) ||
+               Move::SINGLE_VALUES.include?(player_choice.downcase)
       prompt "Invalid choice, please try again."
     end
-    self.move = player_choice
+    player_choice = correct_player_choice(player_choice)
+    self.move = Move.new(player_choice)
   end
 end
 
@@ -57,18 +67,76 @@ class Computer < Player
   end
 
   def choose
-    self.move = %w(r p s).sample
+    self.move = Move.new(Move::VALUES.sample)
+  end
+end
+
+class Move
+  include Display
+  attr_reader :rps_strings
+
+  VALUES = ['Rock', 'Paper', 'Scissors']
+  SINGLE_VALUES = ['r', 'p', 's']
+
+  def initialize(value)
+    @value = value
+  end
+
+  def rock?
+    @value == 'Rock' || @value == 'r'
+  end
+
+  def paper?
+    @value == 'Paper' || @value == 'p'
+  end
+
+  def scissors?
+    @value == 'Scissors' || @value == 's'
+  end
+
+  def >(other_move)
+    if rock? && other_move.scissors? ||
+       paper? && other_move.rock? ||
+       scissors? && other_move.paper?
+      true
+    else
+      false
+    end
+  end
+
+  def <(other_move)
+    if scissors? && other_move.rock? ||
+       rock? && other_move.paper? ||
+       paper? && other_move.scissors?
+      true
+    else
+      false
+    end
+  end
+
+  def to_s
+    if @value.length > 1
+      @value
+    else
+      case @value
+      when 'r'
+        'Rock'
+      when 'p'
+        'Paper'
+      when 's'
+        'Scissors'
+      end
+    end
   end
 end
 
 class RPSGame
   include Display
   attr_accessor :human, :computer
-  RPS_choices = {'r' => 'Rock', 'p' => 'Paper', 's' => 'Scissors'}
 
   def initialize
     clear_screen
-    display_message("Welcome to the Rock, Paper Scissors, game!")
+    display_message("Welcome to the Rock, Paper, Scissors game!")
     self.human = Human.new
     self.computer = Computer.new
     @winner = nil
@@ -79,21 +147,18 @@ class RPSGame
   end
 
   def compare_moves
-    if human.move == computer.move
-      @winner = nil
-    elsif self.human.move == 'r' && computer.move == 's' ||
-          self.human.move == 'p' && computer.move == 'r' ||
-          self.human.move == 's' && computer.move == 'p'
-      @winner = human.name
-    else
-      @winner = computer.name
-    end
+    @winner = if human.move > computer.move
+                human.name
+              elsif human.move < computer.move
+                computer.name
+              else
+                nil
+              end
   end
 
   def display_winner
-    prompt
-    prompt "#{self.human.name} chose: #{RPS_choices[human.move]}."
-    prompt "#{self.computer.name} chose: #{RPS_choices[computer.move]}."
+    prompt "#{human.name} chose: #{human.move.to_s}."
+    prompt "#{computer.name} chose: #{computer.move.to_s}."
     compare_moves
     if @winner
       prompt
