@@ -1,7 +1,7 @@
 # oop_design2
+# frozen_string_literal: false
 
 module Display
-
   def clear_screen
     system('clear') || system('cls')
   end
@@ -27,7 +27,6 @@ class Player
 end
 
 class Human < Player
-
   def set_name
     n = nil
     prompt "Please enter your name."
@@ -41,9 +40,9 @@ class Human < Player
 
   def correct_player_choice(choice)
     if choice.length > 1
-      choice = choice.downcase.capitalize
+      choice.downcase.capitalize
     else
-      choice = choice.downcase
+      choice.downcase
     end
   end
 
@@ -75,8 +74,8 @@ class Move
   include Display
   attr_reader :rps_strings
 
-  VALUES = ['Rock', 'Paper', 'Scissors']
-  SINGLE_VALUES = ['r', 'p', 's']
+  VALUES = ['Rock', 'Paper', 'Scissors'].freeze
+  SINGLE_VALUES = ['r', 'p', 's'].freeze
 
   def initialize(value)
     @value = value
@@ -95,23 +94,15 @@ class Move
   end
 
   def >(other_move)
-    if rock? && other_move.scissors? ||
-       paper? && other_move.rock? ||
-       scissors? && other_move.paper?
-      true
-    else
-      false
-    end
+    rock? && other_move.scissors? ||
+      paper? && other_move.rock? ||
+      scissors? && other_move.paper?
   end
 
   def <(other_move)
-    if scissors? && other_move.rock? ||
-       rock? && other_move.paper? ||
-       paper? && other_move.scissors?
-      true
-    else
-      false
-    end
+    scissors? && other_move.rock? ||
+      rock? && other_move.paper? ||
+      paper? && other_move.scissors?
   end
 
   def to_s
@@ -146,25 +137,25 @@ class RPSGame
     prompt "Thanks for playing Rock, Paper, Scissors. Good bye!"
   end
 
-  def compare_moves
+  def determine_winner
     @winner = if human.move > computer.move
                 human.name
               elsif human.move < computer.move
                 computer.name
-              else
-                nil
               end
   end
 
+  def display_moves
+    prompt "#{human.name} chose: #{human.move}."
+    prompt "#{computer.name} chose: #{computer.move}."
+  end
+
   def display_winner
-    prompt "#{human.name} chose: #{human.move.to_s}."
-    prompt "#{computer.name} chose: #{computer.move.to_s}."
-    compare_moves
+    determine_winner
+    prompt
     if @winner
-      prompt
       prompt "#{@winner} wins!"
     else
-      prompt
       prompt "It's a tie!"
     end
   end
@@ -204,6 +195,7 @@ class RPSGame
       display_game_screen
       human.choose
       computer.choose
+      display_moves
       display_winner
       break unless play_again_2?
     end
@@ -212,3 +204,17 @@ class RPSGame
 end
 
 RPSGame.new.play
+
+# 1. What is the primary improvement of this new design?
+# The simplification of the decision of who wins method:
+# def compare_moves
+#   @winner = if human.move > computer.move
+#               human.name
+#             elsif human.move < computer.move
+#               computer.name
+#             else
+#               nil
+#             end
+# end
+# 2. What is the primary drawback of this new design?
+# Addition of an extra class Move, to the four previously existing classes (RPS_Game, Player, Human and Computer).

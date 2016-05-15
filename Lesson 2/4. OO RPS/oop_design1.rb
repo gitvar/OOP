@@ -149,7 +149,7 @@ end
 RPSGame.new.play
 
 # 1. Is this design, with Human and Computer sub-classes, better? Why, or why not?
-## Yes, it is better. The 'set_name' and 'choose' methods in each sub-class is much simpler than the combined methods of the Player class.
+## Yes, it is better. The 'set_name' and 'choose' methods in each sub-class is much simpler than the combined methods of the Player class on its own.
 
 # 2. What is the primary improvement of this new design?
 ## Simplifies Player class and simplifies 'set_name' and 'choose' methods in the corresponding two sub-classes (Human and Computer).
