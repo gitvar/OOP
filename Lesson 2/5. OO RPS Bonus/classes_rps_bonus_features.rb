@@ -1,4 +1,4 @@
-# rpsls_bonus_features.rbv
+# classes_rps_bonus_features.rb
 # frozen_string_literal: false
 
 
@@ -38,7 +38,7 @@ end
 class Human < Player
   def set_name
     n = nil
-    prompt "Please enter your name, or press RETURN and be called 'Bob'..."
+    prompt "Please enter your name, or just press RETURN and be called 'Bob'..."
     loop do
       n = gets.chomp
       if n.empty?
@@ -63,6 +63,11 @@ class Human < Player
       prompt "Invalid choice, please try again."
     end
     self.move = Move.new(Move.format_choice(player_choice))
+
+    # self.move = if Move.format_choice(player_choice) == 'Rock'
+    #               new.Rock
+    #             end
+
   end
 end
 
@@ -82,14 +87,14 @@ class Move
 
   VALUES = ['Rock', 'Paper', 'Scissors'].freeze
   SINGLE_VALUES = ['r', 'p', 's'].freeze
-  @@valid_choices = {'r' => 'Rock', 'p' => 'Paper', 's' => 'Scissors'}
+  @@format_choices = {'r' => 'Rock', 'p' => 'Paper', 's' => 'Scissors'}
 
   def initialize(value)
     @value = value
   end
 
   def self.format_choice(value)
-    @@valid_choices[value[0].downcase]
+    @@format_choices[value[0].downcase]
   end
 
   def rock?
@@ -117,9 +122,24 @@ class Move
   end
 
   def to_s
-      @value
+    @value
   end
 end
+
+# class Rock < Move
+#
+#   attr_accessor :value
+#
+#   def initialize
+#     self.value = 'Rock'
+#   end
+# end
+#
+# class Paper
+# end
+#
+# class Scissors
+# end
 
 class RPSGame
   include Display
@@ -138,6 +158,7 @@ class RPSGame
   end
 
   def determine_winner
+    prompt "#{human.move}"
     @winner = if human.move > computer.move
                 human.name
               elsif human.move < computer.move
