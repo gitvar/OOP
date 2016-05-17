@@ -1,6 +1,13 @@
 # rpsls_bonus_features.rbv
 # frozen_string_literal: false
 
+
+module Misc
+  def valid_string?(name_string)
+    !!(name_string =~ /^([A-z])*$/)
+  end
+end
+
 module Display
   def clear_screen
     system('clear') || system('cls')
@@ -19,6 +26,8 @@ end
 
 class Player
   include Display
+  include Misc
+
   attr_accessor :move, :name
 
   def initialize
@@ -29,11 +38,17 @@ end
 class Human < Player
   def set_name
     n = nil
-    prompt "Please enter your name."
+    prompt "Please enter your name, or press RETURN and be called 'Bob'..."
     loop do
       n = gets.chomp
-      break unless n.empty?
-      prompt "Please enter a valid name."
+      if n.empty?
+        n = "\'Bob\'"
+        break
+      elsif valid_string?(n)
+        break
+      else
+        prompt "Please enter a valid name."
+      end
     end
     self.name = n
   end
@@ -162,9 +177,9 @@ class RPSGame
 
   def play_again_1?
     prompt
-    prompt "Play again? (S) to Stop, any other key to continue."
+    prompt "Play again? (N or n) for No, any other key to play again."
     user_choice = gets.chomp.downcase
-    user_choice[0] == 's' ? false : true
+    user_choice[0] == 'n' ? false : true
   end
 
   def play_again_2?
@@ -197,24 +212,10 @@ class RPSGame
       computer.choose
       display_moves
       display_winner
-      break unless play_again_2?
+      break unless play_again_1?
     end
     display_goodbye_message
   end
 end
 
 RPSGame.new.play
-
-# 1. What is the primary improvement of this new design?
-# The simplification of the decision of who wins method:
-# def compare_moves
-#   @winner = if human.move > computer.move
-#               human.name
-#             elsif human.move < computer.move
-#               computer.name
-#             else
-#               nil
-#             end
-# end
-# 2. What is the primary drawback of this new design?
-# Addition of an extra class Move, to the four previously existing classes (RPS_Game, Player, Human and Computer).
