@@ -1,10 +1,9 @@
-# rpsls_bonus_features.rbv
+# rps_oop_basic.rb
 # frozen_string_literal: false
 
-
-module Misc
-  def valid_string?(name_string)
-    !!(name_string =~ /^([A-z])*$/)
+class String
+  def pure_string?
+    !!(self =~ /^([A-z])*$/)
   end
 end
 
@@ -26,7 +25,6 @@ end
 
 class Player
   include Display
-  include Misc
 
   attr_accessor :move, :name
 
@@ -37,14 +35,14 @@ end
 
 class Human < Player
   def set_name
-    n = nil
-    prompt "Please enter your name, or press RETURN and be called 'Bob'..."
+    n = ''
+    prompt "Please enter your name, or just press RETURN and be called 'Master'"
     loop do
       n = gets.chomp
       if n.empty?
-        n = "\'Bob\'"
+        n = "Master"
         break
-      elsif valid_string?(n)
+      elsif n.pure_string?
         break
       else
         prompt "Please enter a valid name."
@@ -82,14 +80,14 @@ class Move
 
   VALUES = ['Rock', 'Paper', 'Scissors'].freeze
   SINGLE_VALUES = ['r', 'p', 's'].freeze
-  @@valid_choices = {'r' => 'Rock', 'p' => 'Paper', 's' => 'Scissors'}
+  @format_choices = { 'r' => 'Rock', 'p' => 'Paper', 's' => 'Scissors' }
 
   def initialize(value)
     @value = value
   end
 
   def self.format_choice(value)
-    @@valid_choices[value[0].downcase]
+    @format_choices[value[0].downcase]
   end
 
   def rock?
@@ -117,7 +115,7 @@ class Move
   end
 
   def to_s
-      @value
+    @value
   end
 end
 
@@ -151,7 +149,6 @@ class RPSGame
   end
 
   def display_winner
-    determine_winner
     prompt
     if @winner
       prompt "#{@winner} wins!"
@@ -167,19 +164,8 @@ class RPSGame
     user_choice[0] == 'n' ? false : true
   end
 
-  # def play_again?
-  #   user_choice = nil
-  #   loop do
-  #     prompt
-  #     prompt "Want to play again? (y/n)."
-  #     user_choice = gets.chomp
-  #     break if ['y', 'n'].include?(user_choice.downcase)
-  #     prompt "Sorry, only 'y' or 'n'are valid inputs."
-  #   end
-  #   user_choice == 'y' ? true : false
-  # end
-
   def display_game_screen
+    clear_screen
     prompt
     prompt " Rock, Paper, Scissors"
     prompt "======================="
@@ -191,10 +177,11 @@ class RPSGame
 
   def play
     loop do
-      clear_screen
       display_game_screen
       human.choose
+      display_game_screen
       computer.choose
+      determine_winner
       display_moves
       display_winner
       break unless play_again?
