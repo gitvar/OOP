@@ -1,6 +1,7 @@
 # classes_rps_bonus_features.rb
 # frozen_string_literal: false
 
+# I have tried to add an extra method to the String class which checks to see that only valid alphabetic characters are allowed in the string.
 class String
   def pure_string?
     !!(self =~ /^([A-z])*$/)
@@ -8,6 +9,7 @@ class String
 end
 
 module Display
+  # The 'clear_screen' method below by way of feedback given by Pete Hanson to another student. Thanks Pete!
   def clear_screen
     system('clear') || system('cls')
   end
@@ -42,7 +44,7 @@ class Human < Player
       if nm.empty?
         nm = "The Master"
         break
-      elsif nm.pure_string?
+      elsif nm.pure_string? # See above for this method's definition.
         break
       else
         prompt "Please enter a valid name."
@@ -62,13 +64,14 @@ class Human < Player
     end
   end
 
+  # Method 'choose' allows the player to enter a 'move' as a capitalized word (e.g. Rock), or a lowercase word (e.g. rock). Fully uppercase words for a move (e.g. ROCK), and camelcase words like SciSsorS, are vaild entries as well. It also allows for the player to only enter the first letter of a move,  again, in upper or lower case (e.g. r or R).
   def choose
     player_choice = nil
     loop do
       prompt "Choose one: (R)ock, (P)aper or (S)cissors"
       player_choice = gets.chomp.to_s
-      break if Move::VALUES.include?(player_choice.downcase.capitalize) ||
-               Move::SINGLE_VALUES.include?(player_choice.downcase)
+      break if Move::MOVE_WORDS.include?(player_choice.downcase.capitalize) ||
+               Move::MOVE_LETTERS.include?(player_choice.downcase)
       prompt "Invalid choice, please try again."
     end
     self.move = create_move(Move.format_choice(player_choice))
@@ -77,7 +80,7 @@ end
 
 class Computer < Player
   def set_name
-    self.name = ["Hal", "R2D2", "CP3O", "Chappie", "Marvin"].sample
+    self.name = ['Hal', 'R2D2', 'CP3O', 'Chappie', 'Marvin', 'T-800', 'T-1000', 'Twiki', 'Dr. Theopolis', 'Wall·E', 'EVE'].sample
   end
 
   def choose
@@ -96,39 +99,12 @@ class Move
   include Display
   attr_reader :rps_strings
 
-  VALUES = ['Rock', 'Paper', 'Scissors'].freeze
-  SINGLE_VALUES = ['r', 'p', 's'].freeze
+  MOVE_WORDS = ['Rock', 'Paper', 'Scissors'].freeze
+  MOVE_LETTERS = ['r', 'p', 's'].freeze
   @format_choices = { 'r' => 'Rock', 'p' => 'Paper', 's' => 'Scissors' }
-
-  def initialize
-  end
 
   def self.format_choice(value)
     @format_choices[value[0].downcase]
-  end
-
-  def rock?
-    to_s == 'Rock'
-  end
-
-  def paper?
-    to_s == 'Paper'
-  end
-
-  def scissors?
-    to_s == 'Scissors'
-  end
-
-  def >(other_move)
-    rock? && other_move.scissors? ||
-      paper? && other_move.rock? ||
-      scissors? && other_move.paper?
-  end
-
-  def <(other_move)
-    scissors? && other_move.rock? ||
-      rock? && other_move.paper? ||
-      paper? && other_move.scissors?
   end
 end
 
@@ -136,11 +112,27 @@ class Rock < Move
   def to_s
     'Rock'
   end
+
+  def >(opponent_move)
+    opponent_move.class.to_s == 'Scissors'
+  end
+
+  def <(opponent_move)
+    opponent_move.class.to_s == 'Paper'
+  end
 end
 
 class Paper < Move
   def to_s
     'Paper'
+  end
+
+  def >(opponent_move)
+    opponent_move.class.to_s == 'Rock'
+  end
+
+  def <(opponent_move)
+    opponent_move.class.to_s == 'Scissors'
   end
 end
 
@@ -148,10 +140,17 @@ class Scissors < Move
   def to_s
     'Scissors'
   end
+
+  def >(opponent_move)
+    opponent_move.class.to_s == 'Paper'
+  end
+
+  def <(opponent_move)
+    opponent_move.class.to_s == 'Rock'
+  end
 end
 
 class RPSGame
-  require 'pry'
   include Display
   attr_accessor :human, :computer
 
@@ -189,6 +188,7 @@ class RPSGame
     end
   end
 
+  # My version of the 'play_again?' method will only stop the game if the player enters 'N' or 'n'. Otherwise it will play again. This makes it comvenient and FAST, as you can just press the RETURN key to play again.
   def play_again?
     prompt
     prompt "Play again? (N or n) for No, any other key to play again."
@@ -211,7 +211,7 @@ class RPSGame
     loop do
       display_game_screen
       human.choose
-      display_game_screen
+      display_game_screen # Method called again to erase actual player input.
       computer.choose
       determine_winner
       display_moves
