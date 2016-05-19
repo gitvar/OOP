@@ -27,7 +27,6 @@ end
 
 class Player
   include Display
-
   attr_accessor :move, :name
 
   def initialize
@@ -96,9 +95,6 @@ class Computer < Player
 end
 
 class Move
-  include Display
-  attr_reader :rps_strings
-
   MOVE_WORDS = ['Rock', 'Paper', 'Scissors'].freeze
   MOVE_LETTERS = ['r', 'p', 's'].freeze
   @format_choices = { 'r' => 'Rock', 'p' => 'Paper', 's' => 'Scissors' }
@@ -106,48 +102,47 @@ class Move
   def self.format_choice(value)
     @format_choices[value[0].downcase]
   end
+
+  def beats?(opponent)
+    rock? && opponent.scissors? ||
+      paper? && opponent.rock? ||
+      scissors? && opponent.paper?
+  end
+
+  def equals?(opponent)
+    name == opponent.name
+  end
+
+  def to_s
+    self.class.to_s
+  end
+
+  protected
+
+  def rock?
+    name == 'Rock'
+  end
+
+  def paper?
+    name == 'Paper'
+  end
+
+  def scissors?
+    name == 'Scissors'
+  end
+
+  def name
+    to_s
+  end
 end
 
 class Rock < Move
-  def to_s
-    'Rock'
-  end
-
-  def >(opponent_move)
-    opponent_move.class.to_s == 'Scissors'
-  end
-
-  def <(opponent_move)
-    opponent_move.class.to_s == 'Paper'
-  end
 end
 
 class Paper < Move
-  def to_s
-    'Paper'
-  end
-
-  def >(opponent_move)
-    opponent_move.class.to_s == 'Rock'
-  end
-
-  def <(opponent_move)
-    opponent_move.class.to_s == 'Scissors'
-  end
 end
 
 class Scissors < Move
-  def to_s
-    'Scissors'
-  end
-
-  def >(opponent_move)
-    opponent_move.class.to_s == 'Paper'
-  end
-
-  def <(opponent_move)
-    opponent_move.class.to_s == 'Rock'
-  end
 end
 
 class RPSGame
@@ -167,9 +162,11 @@ class RPSGame
   end
 
   def determine_winner
-    @winner = if human.move > computer.move
+    @winner = if human.move.equals?(computer.move)
+                nil
+              elsif human.move.beats?(computer.move)
                 human.name
-              elsif human.move < computer.move
+              else
                 computer.name
               end
   end
@@ -211,7 +208,7 @@ class RPSGame
     loop do
       display_game_screen
       human.choose
-      display_game_screen # Method called again to erase actual player input.
+      display_game_screen # Called again to erase unformatted player input.
       computer.choose
       determine_winner
       display_moves
