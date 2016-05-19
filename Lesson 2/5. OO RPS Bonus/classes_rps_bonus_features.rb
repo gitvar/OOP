@@ -25,12 +25,95 @@ module Display
   end
 end
 
+class Move
+  MOVE_WORDS = ['Rock', 'Paper', 'Scissors', 'Lizard', 'Spock'].freeze
+  MOVE_LETTERS = ['r', 'p', 's', 'l', 'c'].freeze
+  @format_choices = { 'r' => 'Rock', 'p' => 'Paper', 's' => 'Scissors', 'l' => 'Lizard', 'c' => 'Spock' }
+
+  def initialize
+  end
+
+  def self.format_choice(value)
+    @format_choices[value[0].downcase]
+  end
+
+  def beats?(opponent)
+    rock? && opponent.scissors? ||
+      rock? && opponent.lizard? ||
+
+      paper? && opponent.rock? ||
+      paper? && opponent.spock? ||
+
+      scissors? && opponent.paper? ||
+      scissors? && opponent.lizard? ||
+
+      lizard? && opponent.spock? ||
+      lizard? && opponent.paper? ||
+
+      spock? && opponent.scissors? ||
+      spock? && opponent.rock?
+  end
+
+  def equals?(opponent)
+    name == opponent.name
+  end
+
+  def to_s
+    self.class.to_s
+  end
+
+  def rock?
+    name == 'Rock'
+  end
+
+  def paper?
+    name == 'Paper'
+  end
+
+  def scissors?
+    name == 'Scissors'
+  end
+
+  def lizard?
+    name == 'Lizard'
+  end
+
+  def spock?
+    name == 'Spock'
+  end
+
+  def name
+    to_s
+  end
+end
+
+class Rock < Move
+end
+
+class Paper < Move
+end
+
+class Scissors < Move
+end
+
+class Lizard < Move
+end
+
+class Spock < Move
+end
+
 class Player
   include Display
-  attr_accessor :move, :name
+  attr_accessor :move, :name, :score, :history
 
   def initialize
     set_name
+    @score = 0
+    @history = []
+  end
+
+  def <<(string)
+    history << string
   end
 end
 
@@ -58,8 +141,12 @@ class Human < Player
       Rock.new
     when 'Paper'
       Paper.new
-    else # 'Scissors'
+    when 'Scissors'
       Scissors.new
+    when 'Lizard'
+      Lizard.new
+    else # 'Spock'
+      Spock.new
     end
   end
 
@@ -67,98 +154,56 @@ class Human < Player
   def choose
     player_choice = nil
     loop do
-      prompt "Choose one: (R)ock, (P)aper or (S)cissors"
+      prompt
+      prompt "Choose one: (R)ock, (P)aper, (S)cissors, (L)izard, Spo(c)k"
       player_choice = gets.chomp.to_s
       break if Move::MOVE_WORDS.include?(player_choice.downcase.capitalize) ||
                Move::MOVE_LETTERS.include?(player_choice.downcase)
       prompt "Invalid choice, please try again."
     end
     self.move = create_move(Move.format_choice(player_choice))
+    history << move.name
   end
 end
 
 class Computer < Player
   def set_name
-    self.name = ['Hal', 'R2D2', 'CP3O', 'Chappie', 'Marvin', 'T-800', 'T-1000', 'Twiki', 'Dr. Theopolis', 'Wall·E', 'EVE'].sample
+    self.name = ['Hal', 'R2D2', 'CP3O', 'Chappie', 'Marvin', 'T-800', 'T-1000', 'Twiki', 'Wall·E', 'EVE'].sample
   end
 
   def choose
-    self.move = case (1 + rand(3))
+    self.move = case (1 + rand(5))
                 when 1
                   Rock.new
                 when 2
                   Paper.new
-                else
+                when 3
                   Scissors.new
+                when 4
+                  Lizard.new
+                else
+                  Spock.new
                 end
+    history << move.name
   end
-end
-
-class Move
-  MOVE_WORDS = ['Rock', 'Paper', 'Scissors'].freeze
-  MOVE_LETTERS = ['r', 'p', 's'].freeze
-  @format_choices = { 'r' => 'Rock', 'p' => 'Paper', 's' => 'Scissors' }
-
-  def self.format_choice(value)
-    @format_choices[value[0].downcase]
-  end
-
-  def beats?(opponent)
-    rock? && opponent.scissors? ||
-      paper? && opponent.rock? ||
-      scissors? && opponent.paper?
-  end
-
-  def equals?(opponent)
-    name == opponent.name
-  end
-
-  def to_s
-    self.class.to_s
-  end
-
-  protected
-
-  def rock?
-    name == 'Rock'
-  end
-
-  def paper?
-    name == 'Paper'
-  end
-
-  def scissors?
-    name == 'Scissors'
-  end
-
-  def name
-    to_s
-  end
-end
-
-class Rock < Move
-end
-
-class Paper < Move
-end
-
-class Scissors < Move
 end
 
 class RPSGame
   include Display
+
+  MAX_SCORE = 3
   attr_accessor :human, :computer
 
   def initialize
     clear_screen
-    display_message("Welcome to the Rock, Paper, Scissors game!")
+    display_message("Welcome to the Rock, Paper, Scissors, Lizard, Spock game!")
     self.human = Human.new
     self.computer = Computer.new
     @winner = nil
   end
 
   def display_goodbye_message
-    prompt "Thanks for playing Rock, Paper, Scissors. Good bye!"
+    prompt "Thanks for playing Rock, Paper, Scissors, Lizard, Spock. Good bye!"
   end
 
   def determine_winner
@@ -172,16 +217,33 @@ class RPSGame
   end
 
   def display_moves
+    prompt
     prompt "#{human.name} chose: #{human.move}."
     prompt "#{computer.name} chose: #{computer.move}."
   end
 
+  def comentary
+    prompt
+    if human.score == computer.score
+      prompt "Scores are level at this stage."
+    elsif human.score > computer.score
+      prompt "#{human.name} is leading!"
+    else
+      prompt "#{human.name} is currently behind."
+    end
+  end
+
   def display_winner
     prompt
-    if @winner
-      prompt "#{@winner} wins!"
+    if human.score == MAX_SCORE || computer.score == MAX_SCORE
+      prompt "#{@winner.upcase} WINS THE MATCH!"
     else
-      prompt "It's a tie!"
+      if @winner
+        prompt "#{@winner} won the last game."
+      else
+        prompt "It's a tie!"
+      end
+      comentary
     end
   end
 
@@ -193,26 +255,60 @@ class RPSGame
     user_choice[0] == 'n' ? false : true
   end
 
+  def display_game_results
+    return if human.history.empty?
+    (0..human.history.size - 1).each do |n|
+      if n < 9
+        print "=>     #{n + 1} "
+      else
+        print "=>     #{n + 1}"
+      end
+      print " ".ljust(10, " ")
+      print human.history[n].to_s.ljust(14, " ")
+      puts computer.history[n].to_s.ljust(12, " ")
+    end
+  end
+
   def display_game_screen
     clear_screen
     prompt
-    prompt " Rock, Paper, Scissors"
-    prompt "======================="
+    prompt " Rock, Paper, Scissors, Lizard, Spock"
+    prompt "======================================"
     prompt
-    prompt "Player 1: #{human.name}"
-    prompt "Player 2: #{computer.name}"
+    print "=>  Game No.".ljust(15, " ")
+    print "#{human.name}(#{human.score})".center(14, " ")
+    puts "#{computer.name}(#{computer.score})".center(13, " ")
     prompt
+    display_game_results
+  end
+
+  def update_scores
+    if @winner == human.name
+      human.score += 1
+    elsif @winner == computer.name
+      computer.score += 1
+    end
+  end
+
+  def reset_for_new_game
+    human.score = 0
+    human.history = []
+    self.computer = Computer.new
   end
 
   def play
     loop do
       display_game_screen
       human.choose
-      display_game_screen # Called again to erase unformatted player input.
       computer.choose
+      display_game_screen # Call again to erase unformatted player input.
       determine_winner
-      display_moves
+      update_scores
+      display_game_screen
       display_winner
+      if human.score == MAX_SCORE || computer.score == MAX_SCORE
+        reset_for_new_game
+      end
       break unless play_again?
     end
     display_goodbye_message
