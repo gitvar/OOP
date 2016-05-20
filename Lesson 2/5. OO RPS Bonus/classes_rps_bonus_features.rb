@@ -37,6 +37,9 @@ class Move
                      'l' => 'Lizard', 'c' => 'Spock' }.freeze
 
   def self.format_choice(value)
+    if value.capitalize == "Spock"
+      value[0] = 'c'
+    end
     FORMAT_CHOICES[value[0].downcase]
   end
 
@@ -46,23 +49,23 @@ class Move
   end
 
   def rock_scenario?(opponent)
-    rock? && opponent.scissors? || rock? && opponent.lizard?
+    rock? && (opponent.scissors? || opponent.lizard?)
   end
 
   def paper_scenario?(opponent)
-    paper? && opponent.rock? || paper? && opponent.spock?
+    paper? && (opponent.rock? || opponent.spock?)
   end
 
   def scissors_scenario?(opponent)
-    scissors? && opponent.paper? || scissors? && opponent.lizard?
+    scissors? && (opponent.paper? || opponent.lizard?)
   end
 
   def lizard_scenario?(opponent)
-    lizard? && opponent.spock? || lizard? && opponent.paper?
+    lizard? && (opponent.spock? || opponent.paper?)
   end
 
   def spock_scenario?(opponent)
-    spock? && opponent.scissors? || spock? && opponent.rock?
+    spock? && (opponent.scissors? || opponent.rock?)
   end
 
   def beats?(opponent)
