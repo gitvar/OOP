@@ -1,17 +1,22 @@
 # classes_rps_bonus_features.rb
 # frozen_string_literal: false
 
-# I have tried to add an extra method to the String class which checks to see that only valid alphabetic characters are allowed in the string.
-class String
-  def pure_string?
-    !!(self =~ /^([A-z])*$/)
+module Misc
+  def pure_string?(string)
+    !!(string =~ /^([A-z])*$/)
   end
 end
 
 module Display
-  # The 'clear_screen' method below by way of feedback given by Pete Hanson to another student. Thanks Pete!
+  # The 'clear_screen' method below by way of feedback given by
+  # Pete Hanson to another student. Thanks Pete!
   def clear_screen
     system('clear') || system('cls')
+  end
+
+  def display_welcome_screen
+    clear_screen
+    display_message("Welcome to the Rock, Paper, Scissors, Lizard, Spock game!")
   end
 
   def prompt(str = "")
@@ -28,33 +33,47 @@ end
 class Move
   MOVE_WORDS = ['Rock', 'Paper', 'Scissors', 'Lizard', 'Spock'].freeze
   MOVE_LETTERS = ['r', 'p', 's', 'l', 'c'].freeze
-  @format_choices = { 'r' => 'Rock', 'p' => 'Paper', 's' => 'Scissors', 'l' => 'Lizard', 'c' => 'Spock' }
-
-  def initialize
-  end
+  FORMAT_CHOICES = { 'r' => 'Rock', 'p' => 'Paper', 's' => 'Scissors',
+                     'l' => 'Lizard', 'c' => 'Spock' }.freeze
 
   def self.format_choice(value)
-    @format_choices[value[0].downcase]
+    FORMAT_CHOICES[value[0].downcase]
+  end
+
+  def self.valid?(a_move)
+    Move::MOVE_WORDS.include?(a_move.capitalize) ||
+      Move::MOVE_LETTERS.include?(a_move.downcase)
+  end
+
+  def rock_scenario?(opponent)
+    rock? && opponent.scissors? || rock? && opponent.lizard?
+  end
+
+  def paper_scenario?(opponent)
+    paper? && opponent.rock? || paper? && opponent.spock?
+  end
+
+  def scissors_scenario?(opponent)
+    scissors? && opponent.paper? || scissors? && opponent.lizard?
+  end
+
+  def lizard_scenario?(opponent)
+    lizard? && opponent.spock? || lizard? && opponent.paper?
+  end
+
+  def spock_scenario?(opponent)
+    spock? && opponent.scissors? || spock? && opponent.rock?
   end
 
   def beats?(opponent)
-    rock? && opponent.scissors? ||
-      rock? && opponent.lizard? ||
-
-      paper? && opponent.rock? ||
-      paper? && opponent.spock? ||
-
-      scissors? && opponent.paper? ||
-      scissors? && opponent.lizard? ||
-
-      lizard? && opponent.spock? ||
-      lizard? && opponent.paper? ||
-
-      spock? && opponent.scissors? ||
-      spock? && opponent.rock?
+    rock_scenario?(opponent) ||
+      paper_scenario?(opponent) ||
+      scissors_scenario?(opponent) ||
+      lizard_scenario?(opponent) ||
+      spock_scenario?(opponent)
   end
 
-  def equals?(opponent)
+  def ==(opponent)
     name == opponent.name
   end
 
@@ -118,21 +137,30 @@ class Player
 end
 
 class Human < Player
+  include Misc
+
+  def set_name_intro
+    clear_screen
+    display_welcome_screen
+    prompt "Please enter your name, or just press RETURN and be" \
+           " called 'The Master'"
+  end
+
   def set_name
-    nm = ''
-    prompt "Please enter your name, or just press RETURN and be called 'The Master'"
+    set_name_intro
+    name = ''
     loop do
-      nm = gets.chomp
-      if nm.empty?
-        nm = "The Master"
+      name = gets.chomp
+      if name.empty?
+        name = "The Master"
         break
-      elsif nm.pure_string? # See above for this method's definition.
+      elsif pure_string?(name)
         break
       else
         prompt "Please enter a valid name."
       end
     end
-    self.name = nm
+    self.name = name
   end
 
   def create_move(choice)
@@ -150,15 +178,13 @@ class Human < Player
     end
   end
 
-  # Method 'choose' allows the player to enter a 'move' as a capitalized word (e.g. Rock), or a lowercase word (e.g. rock). Fully uppercase words for a move (e.g. ROCK), and camelcase words like SciSsorS, are vaild entries as well. It also allows for the player to only enter the first letter of a move,  again, in upper or lower case (e.g. r or R).
   def choose
     player_choice = nil
     loop do
       prompt
       prompt "Choose one: (R)ock, (P)aper, (S)cissors, (L)izard, Spo(c)k"
       player_choice = gets.chomp.to_s
-      break if Move::MOVE_WORDS.include?(player_choice.downcase.capitalize) ||
-               Move::MOVE_LETTERS.include?(player_choice.downcase)
+      break if Move.valid?(player_choice)
       prompt "Invalid choice, please try again."
     end
     self.move = create_move(Move.format_choice(player_choice))
@@ -168,7 +194,8 @@ end
 
 class Computer < Player
   def set_name
-    self.name = ['Hal', 'R2D2', 'CP3O', 'Chappie', 'Marvin', 'T-800', 'T-1000', 'Twiki', 'Wall·E', 'EVE'].sample
+    self.name = ['Hal', 'R2D2', 'CP3O', 'Chappie', 'Marvin', 'T-800',
+                 'T-1000', 'Twiki', 'Wall·E', 'EVE'].sample
   end
 
   def choose
@@ -189,17 +216,17 @@ class Computer < Player
 end
 
 class RPSGame
+  require 'pry'
   include Display
 
-  MAX_SCORE = 3
-  attr_accessor :human, :computer
+  MAX_SCORE = 4
+  attr_accessor :human, :computer, :symbol, :game_number
 
   def initialize
-    clear_screen
-    display_message("Welcome to the Rock, Paper, Scissors, Lizard, Spock game!")
     self.human = Human.new
     self.computer = Computer.new
     @winner = nil
+    @symbol = []
   end
 
   def display_goodbye_message
@@ -207,7 +234,7 @@ class RPSGame
   end
 
   def determine_winner
-    @winner = if human.move.equals?(computer.move)
+    @winner = if human.move == computer.move
                 nil
               elsif human.move.beats?(computer.move)
                 human.name
@@ -222,64 +249,67 @@ class RPSGame
     prompt "#{computer.name} chose: #{computer.move}."
   end
 
-  def comentary
+  def human_score_equals?
+    human.score == computer.score
+  end
+
+  def human_score_greater?
+    human.score > computer.score
+  end
+
+  def commentary
     prompt
-    if human.score == computer.score
+    if human_score_equals?
       prompt "Scores are level at this stage."
-    elsif human.score > computer.score
+    elsif human_score_greater?
       prompt "#{human.name} is leading!"
     else
       prompt "#{human.name} is currently behind."
     end
   end
 
+  def winner_score
+    if @winner == human.name
+      human.score
+    else
+      computer.score
+    end
+  end
+
+  def loser_score
+    if @winner == human.name
+      computer.score
+    else
+      human.score
+    end
+  end
+
   def display_winner
     prompt
+    prompt
     if human.score == MAX_SCORE || computer.score == MAX_SCORE
-      prompt "#{@winner.upcase} WINS THE MATCH!"
+      prompt "#{@winner.upcase} wins the MATCH #{winner_score} games" \
+             " to #{loser_score}!"
     else
       if @winner
         prompt "#{@winner} won the last game."
       else
         prompt "It's a tie!"
       end
-      comentary
+      commentary
+      @winner = nil
     end
   end
 
-  # My version of the 'play_again?' method will only stop the game if the player enters 'N' or 'n'. Otherwise it will play again. This makes it comvenient and FAST, as you can just press the RETURN key to play again.
   def play_again?
     prompt
-    prompt "Play again? (N or n) for No, any other key to play again."
-    user_choice = gets.chomp.downcase
-    user_choice[0] == 'n' ? false : true
-  end
-
-  def display_game_results
-    return if human.history.empty?
-    (0..human.history.size - 1).each do |n|
-      if n < 9
-        print "=>     #{n + 1} "
-      else
-        print "=>     #{n + 1}"
-      end
-      print " ".ljust(10, " ")
-      print human.history[n].to_s.ljust(14, " ")
-      puts computer.history[n].to_s.ljust(12, " ")
+    loop do
+      prompt "Play again? 'N' or 'n' for No, or press 'RETURN' to play again."
+      user_choice = gets.chomp.downcase
+      return true if user_choice == ''
+      return false if user_choice[0] == 'n'
+      prompt "Sorry, I did not understand your input. Try again."
     end
-  end
-
-  def display_game_screen
-    clear_screen
-    prompt
-    prompt " Rock, Paper, Scissors, Lizard, Spock"
-    prompt "======================================"
-    prompt
-    print "=>  Game No.".ljust(15, " ")
-    print "#{human.name}(#{human.score})".center(14, " ")
-    puts "#{computer.name}(#{computer.score})".center(13, " ")
-    prompt
-    display_game_results
   end
 
   def update_scores
@@ -293,26 +323,117 @@ class RPSGame
   def reset_for_new_game
     human.score = 0
     human.history = []
+    self.symbol = []
     self.computer = Computer.new
   end
 
+  def winner_symbol
+    if @winner == computer.name
+      "#"
+    elsif @winner == human.name
+      '*'
+    else
+      ' '
+    end
+  end
+
+  def update_winning_symbol
+    symbol << winner_symbol
+  end
+
+  def display_line_number_with_symbol(line_numbers)
+    if line_numbers < 10
+      print "=>     #{line_numbers + 1}#{symbol[line_numbers]} "
+    else
+      print "=>     #{line_numbers + 1}#{symbol[line_numbers]}"
+    end
+  end
+
+  def display_history_line(num)
+    print " ".ljust(10, " ")
+    print human.history[num].to_s.ljust(14, " ")
+    puts computer.history[num].to_s.ljust(12, " ")
+  end
+
+  def display_history_lines
+    (0..human.history.size - 1).each do |num|
+      display_line_number_with_symbol(num)
+      display_history_line(num)
+    end
+  end
+
+  def display_name_score_line
+    print "=>  Game No.".ljust(15, " ")
+    print "#{human.name}(#{human.score})".center(14, " ")
+    print "  "
+    puts "#{computer.name}(#{computer.score})".center(13, " ")
+  end
+
+  def update_game_screen_body
+    display_name_score_line
+    display_history_lines
+  end
+
+  def display_game_screen_heading
+    clear_screen
+    prompt
+    prompt " Rock, Paper, Scissors, Lizard, Spock"
+    prompt "======================================"
+    prompt
+    prompt "First one to win #{MAX_SCORE} games, wins the match!"
+    prompt
+  end
+
+  def display_welcome_screen
+    clear_screen
+    display_message("Welcome to the Rock, Paper, Scissors, Lizard, Spock game!")
+  end
+
+  def play_intro
+    display_game_screen_heading
+    update_game_screen_body
+  end
+
+  def test_for_match_end
+    if human.score == MAX_SCORE || computer.score == MAX_SCORE
+      reset_for_new_game
+    end
+  end
+
   def play
+    play_intro
     loop do
-      display_game_screen
       human.choose
       computer.choose
-      display_game_screen # Call again to erase unformatted player input.
       determine_winner
       update_scores
-      display_game_screen
+      update_winning_symbol
+      play_intro
       display_winner
-      if human.score == MAX_SCORE || computer.score == MAX_SCORE
-        reset_for_new_game
-      end
+      test_for_match_end
       break unless play_again?
+      play_intro
     end
     display_goodbye_message
   end
 end
 
 RPSGame.new.play
+
+# Main Loop Logic:
+# 1. Display welcome screen
+# 2. Ask for player name
+# 3. Display game screen heading
+# 4. Ask for player input:
+# 4.1. Update player move history
+# 5. Make computer choice:
+# 5.1. Update computer move history
+# 6. Determine winner
+# 7. Update Scores
+# 8. Update Game screen to:
+# 8.1: Update Game screen to show new scores.
+# 8.2: Update Game screen to show previous moves by both players.
+# 9. If MAX_GAMES reached declare winner AND reset for new Match.
+# 10. If MAX_SCORE reached, declare winner AND reset for new Game.
+# 11. Ask to play again
+# 12. If play again LOOP back to 3.
