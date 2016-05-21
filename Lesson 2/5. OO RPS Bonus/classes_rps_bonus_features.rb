@@ -229,7 +229,7 @@ class RPSGame
   include Display
 
   MAX_SCORE = 8
-  attr_accessor :human, :computer, :symbol, :game_number
+  attr_accessor :human, :computer, :symbol
 
   def initialize
     self.human = Human.new
