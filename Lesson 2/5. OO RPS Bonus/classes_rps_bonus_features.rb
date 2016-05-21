@@ -31,97 +31,103 @@ module Display
 end
 
 class Move
+  require 'pry'
   MOVE_WORDS = ['Rock', 'Paper', 'Scissors', 'Lizard', 'Spock'].freeze
   MOVE_LETTERS = ['r', 'p', 's', 'l', 'c'].freeze
   FORMAT_CHOICES = { 'r' => 'Rock', 'p' => 'Paper', 's' => 'Scissors',
                      'l' => 'Lizard', 'c' => 'Spock' }.freeze
 
   def self.format_choice(value)
-    if value.capitalize == "Spock"
-      value[0] = 'c'
-    end
+    return 'Spock' if value.capitalize == 'Spock'
     FORMAT_CHOICES[value[0].downcase]
   end
 
   def self.valid?(a_move)
-    Move::MOVE_WORDS.include?(a_move.capitalize) ||
-      Move::MOVE_LETTERS.include?(a_move.downcase)
-  end
-
-  def rock_scenario?(opponent)
-    rock? && (opponent.scissors? || opponent.lizard?)
-  end
-
-  def paper_scenario?(opponent)
-    paper? && (opponent.rock? || opponent.spock?)
-  end
-
-  def scissors_scenario?(opponent)
-    scissors? && (opponent.paper? || opponent.lizard?)
-  end
-
-  def lizard_scenario?(opponent)
-    lizard? && (opponent.spock? || opponent.paper?)
-  end
-
-  def spock_scenario?(opponent)
-    spock? && (opponent.scissors? || opponent.rock?)
-  end
-
-  def beats?(opponent)
-    rock_scenario?(opponent) ||
-      paper_scenario?(opponent) ||
-      scissors_scenario?(opponent) ||
-      lizard_scenario?(opponent) ||
-      spock_scenario?(opponent)
+    MOVE_WORDS.include?(a_move.capitalize) ||
+      MOVE_LETTERS.include?(a_move.downcase)
   end
 
   def ==(opponent)
     name == opponent.name
   end
 
-  def to_s
-    self.class.to_s
-  end
-
   def rock?
-    name == 'Rock'
+    false
   end
 
   def paper?
-    name == 'Paper'
+    false
   end
 
   def scissors?
-    name == 'Scissors'
+    false
   end
 
   def lizard?
-    name == 'Lizard'
+    false
   end
 
   def spock?
-    name == 'Spock'
+    false
   end
 
   def name
     to_s
   end
+
+  def to_s
+    self.class.to_s
+  end
 end
 
 class Rock < Move
+  def rock?
+    true
+  end
+
+  def beats?(opponent)
+    opponent.scissors? || opponent.lizard?
+  end
 end
 
 class Paper < Move
+  def paper?
+    true
+  end
+
+  def beats?(opponent)
+    opponent.rock? || opponent.spock?
+  end
 end
 
 class Scissors < Move
+  def scissors?
+    true
+  end
+
+  def beats?(opponent)
+    opponent.paper? || opponent.lizard?
+  end
 end
 
 class Lizard < Move
+  def lizard?
+    true
+  end
+
+  def beats?(opponent)
+    opponent.spock? || opponent.paper?
+  end
 end
 
 class Spock < Move
+  def spock?
+    true
+  end
+
+  def beats?(opponent)
+    opponent.scissors? || opponent.rock?
+  end
 end
 
 class Player
@@ -222,7 +228,7 @@ class RPSGame
   require 'pry'
   include Display
 
-  MAX_SCORE = 4
+  MAX_SCORE = 8
   attr_accessor :human, :computer, :symbol, :game_number
 
   def initialize
@@ -345,10 +351,10 @@ class RPSGame
   end
 
   def display_line_number_with_symbol(line_numbers)
-    if line_numbers < 10
-      print "=>     #{line_numbers + 1}#{symbol[line_numbers]} "
+    if line_numbers < 9
+      print "=>    #{line_numbers + 1}#{symbol[line_numbers]} "
     else
-      print "=>     #{line_numbers + 1}#{symbol[line_numbers]}"
+      print "=>    #{line_numbers + 1}#{symbol[line_numbers]}"
     end
   end
 
