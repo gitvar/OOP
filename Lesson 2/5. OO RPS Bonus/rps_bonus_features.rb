@@ -132,12 +132,14 @@ end
 
 class Player
   include Display
-  attr_accessor :move, :name, :score, :history
+  attr_accessor :move, :name, :score, :history, :opponent
 
   def initialize
     set_name
     @score = 0
     @history = []
+    @opponent = nil
+    @move_counter_hash = {}
   end
 
   def <<(string)
@@ -202,14 +204,93 @@ class Human < Player
 end
 
 class Computer < Player
+  VALID_MOVES = ['Rock', 'Paper', 'Scissors', 'Lizard', 'Spock'].freeze
 
   def set_name
     self.name = ['Hal', 'R2D2', 'CP3O', 'Chappie', 'Marvin', 'T-800',
                  'T-1000', 'Twiki', 'Wall·E', 'EVE'].sample
   end
 
+  def display_human_move_counters
+    VALID_MOVES.each do |valid_move|
+      puts "#{valid_move} = #{@move_counter_hash[valid_move]}"
+    end
+  end
+
+  def update_move_counter_hash
+    VALID_MOVES.each do |valid_move|
+      counter = 0
+      opponent.history.each do |element|
+        counter += 1 if valid_move == element
+      end
+      @move_counter_hash[valid_move] = counter
+    end
+    display_human_move_counters
+  end
+
+  def find_highest_last_moves
+    counters = @move_counter_hash.values
+    return nil if counters.max == nil
+    highest_counter = counters.max
+    highest_moves_array = @move_counter_hash.map do |key, value|
+                            if value == highest_counter
+                              key
+                            else
+                              nil
+                            end
+                          end
+    return highest_moves_array
+  end
+
+  def id_most_used_human_moves
+    return nil if opponent.history.size < 2
+    update_move_counter_hash
+    return find_highest_last_moves
+  end
+
+  def counter_move(move1)
+    case move1
+    when 'Rock'
+      2
+    when 'Paper'
+      3
+    when 'Scissors'
+      1
+    else
+      nil
+    end
+  end
+
+  def get_one_suggested_move(array1)
+    a_move = ''
+    suggest_move = 0
+    array1.each do |word|
+      if opponent.history[opponent.history.size - 2] == word # Don't cheat!
+        a_move = word
+      end
+    end
+    if a_move
+      suggest_move = counter_move(a_move)
+    else
+      nil
+    end
+  end
+
+  def decide_next_move
+    most_used_moves_array = id_most_used_human_moves
+    if most_used_moves_array != nil
+      prompt "Most used moves: #{most_used_moves_array}"
+      return get_one_suggested_move(most_used_moves_array)
+    else
+      return (1 + rand(5))
+    end
+  end
+
   def choose
-    self.move = case (1 + rand(5))
+    the_move = decide_next_move
+    prompt "Move Number = #{the_move}"
+    a = gets.chomp
+    self.move = case the_move
                 when 1
                   Rock.new
                 when 2
@@ -235,6 +316,8 @@ class RPSGame
   def initialize
     self.human = Human.new
     self.computer = Computer.new
+    self.computer.opponent = human
+    self.human.opponent = computer
     @winner = nil
     @symbol = []
   end
@@ -335,6 +418,7 @@ class RPSGame
     human.history = []
     self.symbol = []
     self.computer = Computer.new
+    self.computer.opponent = self.human
   end
 
   def winner_symbol
@@ -447,3 +531,47 @@ RPSGame.new.play
 # 10. If MAX_SCORE reached, declare winner AND reset for new Game.
 # 11. Ask to play again
 # 12. If play again LOOP back to 3.
+
+# Human Game History Analysis & Move Rules for Robot player:
+# ==========================================================
+# 1. Start Analysis after two games have been completed.
+#
+# 2. Analyse the Human's previous move for a 'most common' move.
+# 2.1. Suggested Robot Move:
+# 2.1.1. If a common move is found, choose a counter move for the next move.
+# 2.1.2. If the counter move worked, choose a random move next (excluding
+#        the previously chosen move).
+#
+# 3. Patterns to search for:
+#
+# 3.1. Human move is a move which is in the r - p - s - l - c - r - ...
+#      pattern?
+# 3.1.1. Block next predicted Human move.
+# 3.1.2. If the counter move worked, choose a random move next (excluding
+#          the previously chosen move).
+#
+# Example:
+#      Human    Robot
+#        r        c   - Random Robot and Human moves.
+#        p        l   - Random Robot and Human moves.
+#        s        r   - Predict the pattern r - p - (s) in Human moves. And
+#                       choose a move which will beat Scissors (Rock or Spock).
+#
+# 3.2. Human move is a move calculated to beat the Robot's move, if the Robot's
+#      next move was the next move in the pattern (r - p - s - l - c - r ...).
+# 3.2.1. Block next predicted Human move.
+# 3.2.2. If the counter move worked, choose a random move next (excluding
+#        the previously chosen move).
+#
+# Example:
+#      Human    Robot
+#        l       r   - Random Robot and Human moves.
+#        p       p   - Random Robot and Human movea.
+#        r       s   - Random Robot move. Human move calculated to beat
+#                      Scissors, which is after Paper, which was Robot's
+#                      previous move.
+#        s       r   - Robot's move chosen to beat Human's move if that move
+#                      is chosen to beat the next move in the pattern r, p, s,
+#                      l, s, r, p, s, l, s, ... which is what Robot's moves
+#                      look like. Human might choose s or r to beat l in this
+#                      case. But Robot will now choose c (to beat s or r).
