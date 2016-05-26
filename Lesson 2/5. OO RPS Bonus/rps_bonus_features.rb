@@ -484,8 +484,9 @@ class RPSGame
 
   def display_line(num)
     print "=>"
-    print "#{(num + 1).to_s.rjust(6, " ")}"
-    print "#{symbol[num]}"
+    # print "#{(num + 1).to_s.rjust(6, " ")}"
+    print(num + 1).to_s.rjust(6, " ")
+    print symbol[num].to_s
     print " ".ljust(10, " ")
     the_key = computer.history[num].keys.join
     print computer.history[num][the_key][0].to_s.ljust(15, " ")
@@ -537,14 +538,15 @@ class RPSGame
   end
 
   def update_history
-    if @winner == human.name
-      name = 'human'
-    elsif @winner == computer.name
-      name = 'computer'
-    else
-      name = "tie"
-    end
-    computer.history[@game_number] = {name => [human.move.name, computer.move.name]}
+    name = if @winner == human.name
+             'human'
+           elsif @winner == computer.name
+             'computer'
+           else
+             'tie'
+           end
+    computer.history[@game_number] = { name => [human.move.name, \
+                                                computer.move.name] }
     @game_number += 1
   end
 
