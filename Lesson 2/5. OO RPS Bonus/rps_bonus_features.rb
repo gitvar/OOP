@@ -234,7 +234,7 @@ class Computer < Player
     loop do
       the_key = history[counter].keys.join
       if the_key == "human"
-        @move_counter_hash[history[counter][the_key][1]] += 1
+        @move_counter_hash[history[counter]["human"][1]] += 1
       end
       counter += 1
       break if counter >= history.size
@@ -253,9 +253,12 @@ class Computer < Player
 
   def select_move(weights)
     new_random_move_percentage = 1 + rand(100)
-
-    prompt "New_random_move_percentage = #{new_random_move_percentage}"
-
+    #
+    # prompt "New_random_move_percentage = #{new_random_move_percentage}"
+    # prompt "Weights = #{weights}"
+    # prompt "Move percentages = #{@move_percentage_hash}"
+    # a = gets
+    #
     case new_random_move_percentage
     when weights[0]..weights[1]
       1
@@ -306,8 +309,8 @@ class Computer < Player
 
   def calc_new_gap(percentage)
     case percentage
-    when 40..101
-      5
+    when 30..101
+      2
     else
       20
     end
@@ -482,20 +485,20 @@ class RPSGame
     symbol << winner_symbol
   end
 
-  def display_line(num)
+  def display_line(num, array)
     print "=>"
-    # print "#{(num + 1).to_s.rjust(6, " ")}"
-    print(num + 1).to_s.rjust(6, " ")
+    print((num + 1).to_s).rjust(6, " ")
     print symbol[num].to_s
     print " ".ljust(10, " ")
-    the_key = computer.history[num].keys.join
-    print computer.history[num][the_key][0].to_s.ljust(15, " ")
-    puts computer.history[num][the_key][1]
+    print(array[0].to_s).ljust(15, " ")
+    puts array[1]
   end
 
   def display_history_lines
     (0..computer.history.size - 1).each do |number|
-      display_line(number)
+      the_key = computer.history[number].keys.join
+      the_array = computer.history[number][the_key]
+      display_line(number, the_array)
     end
   end
 
@@ -523,6 +526,8 @@ class RPSGame
 
   def display_welcome_screen
     clear_screen
+    puts
+    puts
     display_message("Welcome to the Rock, Paper, Scissors, Lizard, Spock game!")
   end
 
