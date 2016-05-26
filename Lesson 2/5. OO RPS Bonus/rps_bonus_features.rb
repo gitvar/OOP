@@ -8,8 +8,7 @@ module Misc
 end
 
 module Display
-  # The 'clear_screen' method below by way of feedback given by
-  # Pete Hanson to another student. Thanks Pete!
+  # The 'clear_screen' method below courtesy of Pete Hanson,
   def clear_screen
     system('clear') || system('cls')
   end
@@ -133,29 +132,16 @@ end
 class Player
   include Display
   VALID_MOVES = ['Rock', 'Paper', 'Scissors', 'Lizard', 'Spock'].freeze
-  attr_accessor :move, :name, :score, :history, :analysis_history, :opponent
+  attr_accessor :move, :name, :score
 
   def initialize
     set_name
     @score = 0
-    @history = []
-    @analysis_history = []
-    @opponent = nil
-    @move_counter_hash = {}
-    @move_percentage_hash = {}
-    init_move_hashes
   end
 
-  def init_move_hashes
-    VALID_MOVES.each do |the_move|
-      @move_counter_hash[the_move] = 0
-      @move_percentage_hash[the_move] = 0
-    end
-  end
-
-  def <<(string)
-    history << string
-  end
+  # def <<(string)
+  #   history << string
+  # end
 end
 
 class Human < Player
@@ -210,28 +196,48 @@ class Human < Player
       prompt "Invalid choice, please try again."
     end
     self.move = create_move(Move.format_choice(player_choice))
-    history << move.name
   end
 end
 
 class Computer < Player
+  require 'pry'
+
+  attr_accessor :opponent, :history
+
+  def initialize
+    set_name
+    @score = 0
+    @history = {}
+    @opponent = nil
+    @move_counter_hash = {}
+    @move_percentage_hash = {}
+    init_move_hashes
+  end
+
   def set_name
     self.name = ['Hal', 'R2D2', 'CP3O', 'Chappie', 'Marvin', 'T-800',
                  'T-1000', 'Twiki', 'Wall·E', 'EVE'].sample
   end
 
+  def init_move_hashes
+    VALID_MOVES.each do |the_move|
+      @move_counter_hash[the_move] = 0
+      @move_percentage_hash[the_move] = 0
+    end
+  end
+
   def update_move_counters
     # Look for human wins and corresponding own moves.
+    # Example after game 0: history = {0 => {"human" => ["Rock", "Paper"]}}
     init_move_hashes
-    step = 2
     counter = 0
     loop do
-      if analysis_history[step] == "human"
-        @move_counter_hash[analysis_history[step - 2]] += 1
+      the_key = history[counter].keys.join
+      if the_key == "human"
+        @move_counter_hash[history[counter][the_key][1]] += 1
       end
-      step += 3
       counter += 1
-      break if counter >= analysis_history.size / 3
+      break if counter >= history.size
     end
   end
 
@@ -318,6 +324,7 @@ class Computer < Player
   end
 
   def next_move
+    return (1 + rand(5)) if history.empty?
     bad_move = '-'
     analyse_history
     highest_percentage = @move_percentage_hash.values.max
@@ -344,9 +351,6 @@ class Computer < Player
                 when 5
                   Spock.new
                 end
-    history << move.name
-    analysis_history << move.name
-    analysis_history << opponent.move.name
   end
 end
 
@@ -361,9 +365,9 @@ class RPSGame
     self.human = Human.new
     self.computer = Computer.new
     computer.opponent = human
-    human.opponent = computer
     @winner = nil
     @symbol = []
+    @game_number = 0
   end
 
   def display_goodbye_message
@@ -372,13 +376,10 @@ class RPSGame
 
   def determine_winner
     @winner = if human.move == computer.move
-                computer.analysis_history << "tie"
-                nil
+                "tie"
               elsif human.move.beats?(computer.move)
-                computer.analysis_history << "human"
                 human.name
               else
-                computer.analysis_history << "computer"
                 computer.name
               end
   end
@@ -411,7 +412,7 @@ class RPSGame
   def winner_score
     if @winner == human.name
       human.score
-    else
+    elsif @winner == computer.name
       computer.score
     end
   end
@@ -419,19 +420,18 @@ class RPSGame
   def loser_score
     if @winner == human.name
       computer.score
-    else
+    elsif @winner == computer.name
       human.score
     end
   end
 
   def display_winner
     prompt
-    prompt
     if human.score == MAX_SCORE || computer.score == MAX_SCORE
       prompt "#{@winner.upcase} wins the MATCH #{winner_score} games" \
              " to #{loser_score}!"
     else
-      if @winner
+      if @winner != "tie"
         prompt "#{@winner} won the last game."
       else
         prompt "It's a tie!"
@@ -461,9 +461,8 @@ class RPSGame
   end
 
   def reset_for_new_game
+    @game_number = 0
     human.score = 0
-    human.history = []
-    human.analysis_history = []
     self.symbol = []
     self.computer = Computer.new
     computer.opponent = human
@@ -483,28 +482,23 @@ class RPSGame
     symbol << winner_symbol
   end
 
-  def display_line_number_with_symbol(line_numbers)
-    if line_numbers < 9
-      print "=>    #{line_numbers + 1}#{symbol[line_numbers]} "
-    else
-      print "=>    #{line_numbers + 1}#{symbol[line_numbers]}"
-    end
-  end
-
-  def display_history_line(num)
+  def display_line(num)
+    print "=>"
+    print "#{(num + 1).to_s.rjust(6, " ")}"
+    print "#{symbol[num]}"
     print " ".ljust(10, " ")
-    print human.history[num].to_s.ljust(14, " ")
-    puts computer.history[num].to_s.ljust(12, " ")
+    the_key = computer.history[num].keys.join
+    print computer.history[num][the_key][0].to_s.ljust(15, " ")
+    puts computer.history[num][the_key][1]
   end
 
   def display_history_lines
-    (0..human.history.size - 1).each do |num|
-      display_line_number_with_symbol(num)
-      display_history_line(num)
+    (0..computer.history.size - 1).each do |number|
+      display_line(number)
     end
   end
 
-  def display_name_score_line
+  def display_name_line
     print "=>  Game No.".ljust(15, " ")
     print "#{human.name}(#{human.score})".center(14, " ")
     print "  "
@@ -512,7 +506,7 @@ class RPSGame
   end
 
   def update_game_screen_body
-    display_name_score_line
+    display_name_line
     display_history_lines
   end
 
@@ -542,12 +536,25 @@ class RPSGame
     end
   end
 
+  def update_history
+    if @winner == human.name
+      name = 'human'
+    elsif @winner == computer.name
+      name = 'computer'
+    else
+      name = "tie"
+    end
+    computer.history[@game_number] = {name => [human.move.name, computer.move.name]}
+    @game_number += 1
+  end
+
   def play
     play_intro
     loop do
       human.choose
       computer.choose
       determine_winner
+      update_history
       update_scores
       update_winning_symbol
       play_intro
