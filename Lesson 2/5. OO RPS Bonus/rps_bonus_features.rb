@@ -138,10 +138,6 @@ class Player
     set_name
     @score = 0
   end
-
-  # def <<(string)
-  #   history << string
-  # end
 end
 
 class Human < Player
@@ -233,13 +229,55 @@ class Computer < Player
     counter = 0
     loop do
       the_key = history[counter].keys.join
-      if the_key == "human"
+      if the_key == "human" # Inc the computer's move cntr for this human win.
         @move_counter_hash[history[counter]["human"][1]] += 1
+        # @move_counter_hash["Rock"] += 1
       end
       counter += 1
       break if counter >= history.size
     end
   end
+
+  GAME_RULES = {
+                 Rock:     [:Scissors, :Lizard],
+                 Paper:    [:Rock, :Spock],
+                 Scissors: [:Paper, :Lizard],
+                 Lizard:   [:Spock, :Paper],
+                 Spock:    [:Scissors, :Rock]
+               }.freeze
+
+  INVERSE_RULES = {
+                    Rock:     [:Paper, :Spock],
+                    Paper:    [:Scissors, :Lizard],
+                    Scissors: [:Rock, :Spock],
+                    Lizard:   [:Scissors, :Rock],
+                    Spock:    [:Lizard, :Paper]
+                  }.freeze
+
+  # move_counter_hash:
+  # 1-----23-----45-----67-----89-----10 Each space has 5 sashes = equal chance of being hit by random generator.
+  # { "Rock" => 1, "Paper" => 0, "Scissors" => 0, "Lizard" => 0, "Spock" => 0 }
+  # Rock lost. Sub 1 from Rock. inv_Rock is Paper & Spock. Choose to add 1 to Lizard which beats Paper & Spock.
+  # Thus: Rock has less chance & Lizard has more chance.
+  # 1----23-----45-----67_-----89-----10
+  # { "Rock" => 1, "Paper" => 0, "Scissors" => 0, "Lizard" => 1, "Spock" => 0 }
+  # Sub 1 from Lizard and add 1 to Spock
+  # 1----23-----45-----67-----89-----_10
+  # { "Rock" => 2, "Paper" => 0, "Scissors" => 0, "Lizard" => 1, "Spock" => 0 }
+  # Sub 1 from Rock and add 1 to Lizard. But Lizard has lost before. So rather add 1 to lowest losses move: Paper. First one with 0 losses.
+  # 1---23_-----45-----67-----89-----_10
+  # { "Rock" => 3, "Paper" => 0, "Scissors" => 0, "Lizard" => 1, "Spock" => 0 }
+  # Sub 1 from Rock and add 1 to Lizard. But Lizard has lost before. So rather add 1 to lowest losses move: Paper. First one with 0 losses.
+  # 1--23__-----45-----67-----89-----_10
+  # { "Rock" => 3, "Paper" => 1, "Scissors" => 0, "Lizard" => 1, "Spock" => 0 }
+  # Sub 1 from Paper, Inverse points to Rock. Rock has lost. Choose first lowest lost value move. Add 1 to Scissors.
+  # 1--23_-----45_-----67-----89-----_10
+  # { "Rock" => 3, "Paper" => 1, "Scissors" => 1, "Lizard" => 1, "Spock" => 0 }
+  # Sub 1 from Scissors, Inverse points to Paper. But Paper has lost. Choose first lowest lost value move. Add 1 to Spock.
+  # 1--23_-----45-----67-----89-----__10
+  # { "Rock" => 3, "Paper" => 1, "Scissors" => 1, "Lizard" => 1, "Spock" => 1 }
+  # Sub 1 from Spock, Inverse points to Scissors. But Scissors has lost. Choose first lowest lost value move. None lower that Scissors, add 1 Scissors.
+  # 1--23_-----45-----_67-----89-----_10
 
   def analyse_history
     update_move_counters
@@ -463,14 +501,6 @@ class RPSGame
     end
   end
 
-  def reset_for_new_game
-    @game_number = 0
-    human.score = 0
-    self.symbol = []
-    self.computer = Computer.new
-    computer.opponent = human
-  end
-
   def winner_symbol
     if @winner == computer.name
       "#"
@@ -534,6 +564,14 @@ class RPSGame
   def play_intro
     display_game_screen_heading
     update_game_screen_body
+  end
+
+  def reset_for_new_game
+    @game_number = 0
+    human.score = 0
+    self.symbol = []
+    self.computer = Computer.new
+    computer.opponent = human
   end
 
   def test_for_match_end
