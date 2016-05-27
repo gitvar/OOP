@@ -1,7 +1,7 @@
 # rps_oop_basic.rb
 # frozen_string_literal: false
 
-class String
+module Misc
   def pure_string?
     !!(self =~ /^([A-z])*$/)
   end
@@ -34,6 +34,8 @@ class Player
 end
 
 class Human < Player
+  include Misc
+
   def set_name
     n = ''
     prompt "Please enter your name, or just press RETURN and be called 'Master'"

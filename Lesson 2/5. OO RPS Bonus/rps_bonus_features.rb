@@ -30,7 +30,6 @@ module Display
 end
 
 class Move
-  require 'pry'
   MOVE_WORDS = ['Rock', 'Paper', 'Scissors', 'Lizard', 'Spock'].freeze
   MOVE_LETTERS = ['r', 'p', 's', 'l', 'c'].freeze
   FORMAT_CHOICES = { 'r' => 'Rock', 'p' => 'Paper', 's' => 'Scissors',
@@ -196,8 +195,6 @@ class Human < Player
 end
 
 class Computer < Player
-  require 'pry'
-
   attr_accessor :opponent, :history
 
   def initialize
@@ -205,178 +202,115 @@ class Computer < Player
     @score = 0
     @history = {}
     @opponent = nil
-    @move_counter_hash = {}
-    @move_percentage_hash = {}
-    init_move_hashes
+    @losing_move_counter_hash = {}
+    init_losing_move_counter_hash
   end
 
   def set_name
-    self.name = ['Hal', 'R2D2', 'CP3O', 'Chappie', 'Marvin', 'T-800',
+    self.name = ['Hal', 'R2D2', 'C-P3O', 'Chappie', 'Marvin', 'T-800',
                  'T-1000', 'Twiki', 'Wall·E', 'EVE'].sample
   end
 
-  def init_move_hashes
+  def init_losing_move_counter_hash
     VALID_MOVES.each do |the_move|
-      @move_counter_hash[the_move] = 0
-      @move_percentage_hash[the_move] = 0
+      @losing_move_counter_hash[the_move] = 0
     end
   end
 
-  def update_move_counters
-    # Look for human wins and corresponding own moves.
-    # Example after game 0: history = {0 => {"human" => ["Rock", "Paper"]}}
-    init_move_hashes
+  # Look for human wins and corresponding own moves.
+  # Example after game 0:  {0 => Human won => [Human move, Computer move]}}.
+  # history = {0 => {"human" => ["Rock", "Paper"]}}
+  def analyse_history
+    init_losing_move_counter_hash
     counter = 0
     loop do
       the_key = history[counter].keys.join
       if the_key == "human" # Inc the computer's move cntr for this human win.
-        @move_counter_hash[history[counter]["human"][1]] += 1
-        # @move_counter_hash["Rock"] += 1
+        @losing_move_counter_hash[history[counter]["human"][1]] += 1
       end
       counter += 1
       break if counter >= history.size
     end
   end
 
-  GAME_RULES = {
-                 Rock:     [:Scissors, :Lizard],
-                 Paper:    [:Rock, :Spock],
-                 Scissors: [:Paper, :Lizard],
-                 Lizard:   [:Spock, :Paper],
-                 Spock:    [:Scissors, :Rock]
-               }.freeze
-
-  INVERSE_RULES = {
-                    Rock:     [:Paper, :Spock],
-                    Paper:    [:Scissors, :Lizard],
-                    Scissors: [:Rock, :Spock],
-                    Lizard:   [:Scissors, :Rock],
-                    Spock:    [:Lizard, :Paper]
-                  }.freeze
-
-  # move_counter_hash:
-  # 1-----23-----45-----67-----89-----10 Each space has 5 sashes = equal chance of being hit by random generator.
-  # { "Rock" => 1, "Paper" => 0, "Scissors" => 0, "Lizard" => 0, "Spock" => 0 }
-  # Rock lost. Sub 1 from Rock. inv_Rock is Paper & Spock. Choose to add 1 to Lizard which beats Paper & Spock.
-  # Thus: Rock has less chance & Lizard has more chance.
-  # 1----23-----45-----67_-----89-----10
-  # { "Rock" => 1, "Paper" => 0, "Scissors" => 0, "Lizard" => 1, "Spock" => 0 }
-  # Sub 1 from Lizard and add 1 to Spock
-  # 1----23-----45-----67-----89-----_10
-  # { "Rock" => 2, "Paper" => 0, "Scissors" => 0, "Lizard" => 1, "Spock" => 0 }
-  # Sub 1 from Rock and add 1 to Lizard. But Lizard has lost before. So rather add 1 to lowest losses move: Paper. First one with 0 losses.
-  # 1---23_-----45-----67-----89-----_10
-  # { "Rock" => 3, "Paper" => 0, "Scissors" => 0, "Lizard" => 1, "Spock" => 0 }
-  # Sub 1 from Rock and add 1 to Lizard. But Lizard has lost before. So rather add 1 to lowest losses move: Paper. First one with 0 losses.
-  # 1--23__-----45-----67-----89-----_10
-  # { "Rock" => 3, "Paper" => 1, "Scissors" => 0, "Lizard" => 1, "Spock" => 0 }
-  # Sub 1 from Paper, Inverse points to Rock. Rock has lost. Choose first lowest lost value move. Add 1 to Scissors.
-  # 1--23_-----45_-----67-----89-----_10
-  # { "Rock" => 3, "Paper" => 1, "Scissors" => 1, "Lizard" => 1, "Spock" => 0 }
-  # Sub 1 from Scissors, Inverse points to Paper. But Paper has lost. Choose first lowest lost value move. Add 1 to Spock.
-  # 1--23_-----45-----67-----89-----__10
-  # { "Rock" => 3, "Paper" => 1, "Scissors" => 1, "Lizard" => 1, "Spock" => 1 }
-  # Sub 1 from Spock, Inverse points to Scissors. But Scissors has lost. Choose first lowest lost value move. None lower that Scissors, add 1 Scissors.
-  # 1--23_-----45-----_67-----89-----_10
-
-  def analyse_history
-    update_move_counters
-    total = @move_counter_hash.values.reduce(:+) # Total human wins thus far
-    if total > 0
-      @move_counter_hash.each do |key, value|
-        @move_percentage_hash[key] = (value.to_f / total.to_f * 100).to_i
-      end
-    end
-  end
-
-  def select_move(weights)
-    new_random_move_percentage = 1 + rand(100)
-    #
-    # prompt "New_random_move_percentage = #{new_random_move_percentage}"
-    # prompt "Weights = #{weights}"
-    # prompt "Move percentages = #{@move_percentage_hash}"
-    # a = gets
-    #
-    case new_random_move_percentage
-    when weights[0]..weights[1]
+  def select_next_move(weights)
+    case (1 + rand(100))
+    when 0...weights[0]
       1
-    when weights[2]..weights[3]
+    when weights[0]...weights[1]
       2
-    when weights[4]..weights[5]
+    when weights[1]...weights[2]
       3
-    when weights[6]..weights[7]
+    when weights[2]...weights[3]
       4
-    when weights[8]..weights[9]
+    when weights[3]..100
       5
     end
   end
 
-  # 1----23-45----67----89----10, chance of "Paper" is small.
-  # 1----23----45----67-89----10, chance of "Lizard" is small.
-  def weights_for_move(gaps)
-    n1 = 0
-    n2 = n1 + gaps[1] # n1_gap
-    n3 = n2 + 1
-    n4 = n3 + gaps[2] # n3_gap
-    n5 = n4 + 1
-    n6 = n5 + gaps[3] # n5_gap
-    n7 = n6 + 1
-    n8 = n7 + gaps[4] # n7_gap
-    n9 = n8 + 1
-    n10 = n9 + gaps[5] # n9_gap
-    [n1, n2, n3, n4, n5, n6, n7, n8, n9, n10]
+  # 1--R---w0-P-w1---S---w2---L---w3---C---100, chance of "Paper" is small.
+  # 1--R---w0---P---w1---S---w2-L-w3---C--100, chance of "Lizard" is small.
+  def update_weights_for_next_move(gaps)
+    w0 = gaps[0]
+    w1 = w0 + gaps[1]
+    w2 = w1 + gaps[2]
+    w3 = w2 + gaps[3]
+    [w0, w1, w2, w3] # This array = weights_array
   end
 
-  def calc_new_weights(bad_move, gap)
-    n1_gap = n3_gap = n5_gap = n7_gap = n9_gap = ((100 - gap) / 4)
+  def calc_new_gaps_for_all_moves(bad_move, gap)
+    n0_gap = n1_gap = n2_gap = n3_gap = n4_gap = ((100 - gap) / 4)
     case bad_move
     when "Rock"
-      n1_gap = gap
+      n0_gap = gap
     when "Paper"
-      n3_gap = gap
+      n1_gap = gap
     when "Scissors"
-      n5_gap = gap
+      n2_gap = gap
     when "Lizard"
-      n7_gap = gap
+      n3_gap = gap
     when "Spock"
-      n9_gap = gap
+      n4_gap = gap
     end
-    gaps = [gap, n1_gap, n3_gap, n5_gap, n7_gap, n9_gap]
-    weights_for_move(gaps)
+    [n0_gap, n1_gap, n2_gap, n3_gap, n4_gap]
   end
 
-  def calc_new_gap(percentage)
-    case percentage
-    when 30..101
-      2
-    else
+  def calc_new_gap_value(biggest_loosing_move_total)
+    case biggest_loosing_move_total
+    when 0
       20
+    when 1
+      10
+    else
+      0
     end
   end
 
-  def calc_weights_for_move(bad_move, percentage)
-    gap = calc_new_gap(percentage)
-    calc_new_weights(bad_move, gap)
+  def calc_weights_for_next_move(bad_move, biggest_loosing_move_total)
+    gap = calc_new_gap_value(biggest_loosing_move_total)
+    gaps = calc_new_gaps_for_all_moves(bad_move, gap)
+    update_weights_for_next_move(gaps)
   end
 
-  def select_best_move_for(bad_move, percentage)
-    weights = calc_weights_for_move(bad_move, percentage)
-    select_move(weights)
+  def select_best_move_for(bad_move, biggest_loosing_move_total)
+    new_weights = \
+      calc_weights_for_next_move(bad_move, biggest_loosing_move_total)
+    select_next_move(new_weights)
   end
 
   def next_move
     return (1 + rand(5)) if history.empty?
-    bad_move = '-'
+    bad_move = '-*-'
     analyse_history
-    highest_percentage = @move_percentage_hash.values.max
-    if highest_percentage == 0
-      (1 + rand(5))
+    biggest_loosing_move_total = @losing_move_counter_hash.values.max
+    if biggest_loosing_move_total == 0
+      bad_move = "Spock"
     else
-      @move_percentage_hash.each do |key, value|
-        bad_move = key if highest_percentage == value
+      @losing_move_counter_hash.each do |key, value|
+        bad_move = key if value == biggest_loosing_move_total
       end
-      select_best_move_for(bad_move, highest_percentage)
     end
+    select_best_move_for(bad_move, biggest_loosing_move_total)
   end
 
   def choose
@@ -396,7 +330,6 @@ class Computer < Player
 end
 
 class RPSGame
-  require 'pry'
   include Display
 
   MAX_SCORE = 8
@@ -498,7 +431,7 @@ class RPSGame
       human.score += 1
     elsif @winner == computer.name
       computer.score += 1
-    end
+    end # else it is a tie and there is no winner.
   end
 
   def winner_symbol
@@ -515,12 +448,13 @@ class RPSGame
     symbol << winner_symbol
   end
 
-  def display_line(num, array)
+  def display_line(number, array)
     print "=>"
-    print((num + 1).to_s).rjust(6, " ")
-    print symbol[num].to_s
+    num = (number + 1).to_s
+    print num.rjust(6, " ")
+    print symbol[number].to_s
     print " ".ljust(10, " ")
-    print(array[0].to_s).ljust(15, " ")
+    print array[0].to_s.ljust(15, " ")
     puts array[1]
   end
 
