@@ -7,6 +7,20 @@ module Misc
   end
 end
 
+module RPSRules
+  GAME_RULES = { Rock: [:Scissors, :Lizard],
+                 Paper: [:Rock, :Spock],
+                 Scissors: [:Paper, :Lizard],
+                 Lizard: [:Spock, :Paper],
+                 Spock: [:Scissors, :Rock] }.freeze
+
+  INVERSE_RULES = { Rock: [:Paper, :Spock],
+                    Paper: [:Scissors, :Lizard],
+                    Scissors: [:Rock, :Spock],
+                    Lizard: [:Scissors, :Rock],
+                    Spock: [:Lizard, :Paper] }.freeze
+end
+
 module Display
   # The 'clear_screen' method below courtesy of Pete Hanson,
   def clear_screen
@@ -131,6 +145,7 @@ end
 class Player
   include Display
   VALID_MOVES = ['Rock', 'Paper', 'Scissors', 'Lizard', 'Spock'].freeze
+
   attr_accessor :move, :name, :score
 
   def initialize
@@ -195,20 +210,30 @@ class Human < Player
 end
 
 class Computer < Player
-  attr_accessor :opponent, :history
+  require 'pry'
+  include RPSRules
+  HMOVE = 0
+  CMOVE = 1
+  RESULT = 2
+  PERSONALITY_MOVE_CHOICE = { 'Hal' => 'Spock', 'T1000' => 'Rock',
+                              'C3PO' => 'Paper', 'Marvin' => 'Lizard',
+                              'Twiki' => 'Paper', 'EVE' => 'Scissors' }.freeze
+
+  attr_accessor :opponent, :history, :final_weights
 
   def initialize
-    set_name
-    @score = 0
+    super
+    # set_name
+    # @score = 0
     @history = {}
     @opponent = nil
     @losing_move_counter_hash = {}
     init_losing_move_counter_hash
+    @final_weights = [20, 40, 60, 80]
   end
 
   def set_name
-    self.name = ['Hal', 'R2D2', 'C-P3O', 'Chappie', 'Marvin', 'T-800',
-                 'T-1000', 'Twiki', 'Wall·E', 'EVE'].sample
+    self.name = ['Hal', 'C3PO', 'Marvin', 'T-1000', 'Twiki', 'EVE'].sample
   end
 
   def init_losing_move_counter_hash
@@ -217,16 +242,17 @@ class Computer < Player
     end
   end
 
-  # Look for human wins and corresponding own moves.
-  # Example after game 0:  {0 => Human won => [Human move, Computer move]}}.
-  # history = {0 => {"human" => ["Rock", "Paper"]}}
-  def analyse_history
+  # Look for human wins and corresponding computer moves.
+  # Example after game 0:  {0 => [Human move, Computer move, result]]}.
+  # result = 'human, 'computer', 'tie'
+  # history = {0 => ["Rock", "Paper", "human"]}
+  def update_losing_move_counters
     init_losing_move_counter_hash
     counter = 0
     loop do
-      the_key = history[counter].keys.join
+      the_key = history[counter][RESULT]
       if the_key == "human" # Inc the computer's move cntr for this human win.
-        @losing_move_counter_hash[history[counter]["human"][1]] += 1
+        @losing_move_counter_hash[history[counter][CMOVE]] += 1
       end
       counter += 1
       break if counter >= history.size
@@ -234,7 +260,8 @@ class Computer < Player
   end
 
   def select_next_move(weights)
-    case (1 + rand(100))
+    @final_weights = weights
+    case rand(101)
     when 0...weights[0]
       1
     when weights[0]...weights[1]
@@ -248,8 +275,9 @@ class Computer < Player
     end
   end
 
-  # 1--R---w0-P-w1---S---w2---L---w3---C---100, chance of "Paper" is small.
-  # 1--R---w0---P---w1---S---w2-L-w3---C--100, chance of "Lizard" is small.
+  # How the weights system work:
+  # 1--R---w0-P-w1---S---w2---L---w3---C---100, chance of "Paper" is smaller.
+  # 1--R---w0---P---w1---S---w2-L-w3---C--100, chance of "Lizard" is smaller.
   def update_weights_for_next_move(gaps)
     w0 = gaps[0]
     w1 = w0 + gaps[1]
@@ -259,7 +287,7 @@ class Computer < Player
   end
 
   def calc_new_gaps_for_all_moves(bad_move, gap)
-    n0_gap = n1_gap = n2_gap = n3_gap = n4_gap = ((100 - gap) / 4)
+    n0_gap = n1_gap = n2_gap = n3_gap = n4_gap = ((100 - gap) / 4).to_f
     case bad_move
     when "Rock"
       n0_gap = gap
@@ -280,7 +308,7 @@ class Computer < Player
     when 0
       20
     when 1
-      10
+      5
     else
       0
     end
@@ -292,25 +320,52 @@ class Computer < Player
     update_weights_for_next_move(gaps)
   end
 
+  def choose_final_move(chosen_move, cntr, rnd)
+    previous_human_move = history[cntr][HMOVE]
+    pre_previous_human_move = history[cntr - 1][HMOVE]
+    previous_comp_move = history[cntr][CMOVE]
+    if previous_human_move == previous_comp_move
+      INVERSE_RULES[previous_human_move.to_sym][rnd].to_s
+    elsif pre_previous_human_move == previous_human_move
+      previous_human_move
+    else
+      chosen_move
+    end
+  end
+
+  def inject_personality_prejudice(bad_move, next_move)
+    rnd = rand(2)
+    cntr = history.size - 1
+    chosen_move = VALID_MOVES[next_move - 1]
+    prejudiced_move = PERSONALITY_MOVE_CHOICE[name]
+    final_move = if chosen_move == bad_move || chosen_move == prejudiced_move
+                   prejudiced_move
+                 else
+                   choose_final_move(chosen_move, cntr, rnd)
+                 end
+    (VALID_MOVES.index(final_move) + 1)
+  end
+
   def select_best_move_for(bad_move, biggest_loosing_move_total)
     new_weights = \
       calc_weights_for_next_move(bad_move, biggest_loosing_move_total)
-    select_next_move(new_weights)
+    next_move = select_next_move(new_weights)
+    inject_personality_prejudice(bad_move, next_move)
   end
 
   def next_move
-    return (1 + rand(5)) if history.empty?
-    bad_move = '-*-'
-    analyse_history
-    biggest_loosing_move_total = @losing_move_counter_hash.values.max
-    if biggest_loosing_move_total == 0
+    return (1 + rand(5)) if history.size < 2
+    bad_move = ''
+    update_losing_move_counters
+    biggest_losing_move_total = @losing_move_counter_hash.values.max
+    if biggest_losing_move_total == 0
       bad_move = "Spock"
     else
       @losing_move_counter_hash.each do |key, value|
-        bad_move = key if value == biggest_loosing_move_total
+        bad_move = key if value == biggest_losing_move_total
       end
     end
-    select_best_move_for(bad_move, biggest_loosing_move_total)
+    select_best_move_for(bad_move, biggest_losing_move_total)
   end
 
   def choose
@@ -332,7 +387,7 @@ end
 class RPSGame
   include Display
 
-  MAX_SCORE = 8
+  MAX_SCORE = 10
   attr_accessor :human, :computer, :symbol
 
   def initialize
@@ -381,6 +436,8 @@ class RPSGame
     else
       prompt "#{human.name} is currently behind."
     end
+    prompt
+    prompt "Final Weights for game was: #{computer.final_weights}"
   end
 
   def winner_score
@@ -459,10 +516,11 @@ class RPSGame
   end
 
   def display_history_lines
-    (0..computer.history.size - 1).each do |number|
-      the_key = computer.history[number].keys.join
-      the_array = computer.history[number][the_key]
-      display_line(number, the_array)
+    arr = []
+    (0..computer.history.size - 1).each do |num|
+      arr[0] = computer.history[num][0]
+      arr[1] = computer.history[num][1]
+      display_line(num, arr)
     end
   end
 
@@ -515,15 +573,15 @@ class RPSGame
   end
 
   def update_history
-    name = if @winner == human.name
-             'human'
-           elsif @winner == computer.name
-             'computer'
-           else
-             'tie'
-           end
-    computer.history[@game_number] = { name => [human.move.name, \
-                                                computer.move.name] }
+    result = if @winner == human.name
+               'human'
+             elsif @winner == computer.name
+               'computer'
+             else
+               'tie'
+             end
+    computer.history[@game_number] =
+      [human.move.name, computer.move.name, result]
     @game_number += 1
   end
 
