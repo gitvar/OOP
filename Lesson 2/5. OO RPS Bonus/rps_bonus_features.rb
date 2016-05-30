@@ -229,7 +229,6 @@ class Computer < Player
     @opponent = nil
     @losing_move_counter_hash = {}
     init_losing_move_counter_hash
-    @final_weights = [20, 40, 60, 80]
   end
 
   def set_name
@@ -260,7 +259,6 @@ class Computer < Player
   end
 
   def select_next_move(weights)
-    @final_weights = weights
     case rand(101)
     when 0...weights[0]
       1
@@ -605,21 +603,3 @@ class RPSGame
 end
 
 RPSGame.new.play
-
-# Main Loop Logic:
-# 1. Display welcome screen
-# 2. Ask for player name
-# 3. Display game screen heading
-# 4. Ask for player input:
-# 4.1. Update player move history
-# 5. Make computer choice:
-# 5.1. Update computer move history
-# 6. Determine winner
-# 7. Update Scores
-# 8. Update Game screen to:
-# 8.1: Update Game screen to show new scores.
-# 8.2: Update Game screen to show previous moves by both players.
-# 9. If MAX_GAMES reached declare winner AND reset for new Match.
-# 10. If MAX_SCORE reached, declare winner AND reset for new Game.
-# 11. Ask to play again
-# 12. If play again LOOP back to 3.
