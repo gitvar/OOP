@@ -227,8 +227,8 @@ class Computer < Player
   end
 
   def init_losing_move_counter_hash
-    VALID_MOVES.each do |the_move|
-      @losing_move_counter_hash[the_move] = 1
+    VALID_MOVES.each do |a_move|
+      @losing_move_counter_hash[a_move] = 1 # Not zero!
     end
   end
 
@@ -239,17 +239,13 @@ class Computer < Player
   # Example after game zero: history = {0 => ["Scissors", "Paper", "human"]}
   def update_losing_move_counters
     init_losing_move_counter_hash
-    counter = 0
-    loop do
-      the_key = history[counter][RESULT]
-      if the_key == "human" # Inc the computer's move cntr for this human win.
-        @losing_move_counter_hash[history[counter][CMOVE]] += 1
+    (0...history.size).each do |i|
+      if history[i][RESULT] == "human"
+        @losing_move_counter_hash[history[i][CMOVE]] += 1
       end
-      counter += 1
-      break if counter >= history.size
     end
   end
-  #
+
   # def select_next_move(weights)
   #   case rand(1..100)
   #   when 0...weights[0]
@@ -334,6 +330,8 @@ class Computer < Player
                  else
                    choose_final_move(chosen_move, cntr, rnd)
                  end
+    puts "Final Move = #{final_move}"
+    a = gets
     (VALID_MOVES.index(final_move) + 1)
   end
 
@@ -347,7 +345,7 @@ class Computer < Player
       if weight != 0
         weights[item] = max / weight
       else
-        weights[item] = 0
+        weights[item] = 1
       end
     end
     # inverse_weights
@@ -364,7 +362,7 @@ class Computer < Player
     weight_max = weights.values.reduce(:+)
     # random_value = rand(1..inverse_max)
     random_value = rand(1..weight_max)
-    # binding.pry
+    puts "RAND = #{random_value}"
     sum_of_weights = 0
     # inverse_weights.each do |item, weight|
     weights.each do |item, weight|
@@ -378,7 +376,7 @@ class Computer < Player
     #   calc_weights_for_next_move(bad_move, biggest_loosing_move_total)
     # next_move = select_next_move(new_weights)
     next_move = weighed_move(losing_move_counters)
-    # binding.pry
+    puts next_move
     inject_personality_prejudice(bad_move, next_move)
   end
 
@@ -469,8 +467,6 @@ class RPSGame
     else
       prompt "#{human.name} is currently behind."
     end
-    prompt
-    prompt "Final Weights for game was: #{computer.final_weights}"
   end
 
   def winner_score
