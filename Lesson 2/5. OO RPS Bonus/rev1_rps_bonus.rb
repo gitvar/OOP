@@ -197,7 +197,7 @@ class Human < Player
 end
 
 class Computer < Player
-  require 'pry'
+  # require 'pry'
 
   HMOVE = 0
   CMOVE = 1
@@ -246,125 +246,55 @@ class Computer < Player
     end
   end
 
-  # def select_next_move(weights)
-  #   case rand(1..100)
-  #   when 0...weights[0]
-  #     1
-  #   when weights[0]...weights[1]
-  #     2
-  #   when weights[1]...weights[2]
-  #     3
-  #   when weights[2]...weights[3]
-  #     4
-  #   when weights[3]..100
-  #     5
-  #   end
-  # end
-  #
-  # # How the weights system work:
-  # # 1--R---w0-P-w1---S---w2---L---w3---C---100, chance of "Paper" is smaller.
-  # # 1--R---w0---P---w1---S---w2-L-w3---C--100, chance of "Lizard" is smaller.
-  # def update_weights_for_next_move(gaps)
-  #   w0 = gaps[0]
-  #   w1 = w0 + gaps[1]
-  #   w2 = w1 + gaps[2]
-  #   w3 = w2 + gaps[3]
-  #   [w0, w1, w2, w3] # This array = weights_array
-  # end
-  #
-  # def calc_new_gaps_for_all_moves(bad_move, gap)
-  #   n0_gap = n1_gap = n2_gap = n3_gap = n4_gap = ((100 - gap) / 4).to_f
-  #   case bad_move
-  #   when "Rock"
-  #     n0_gap = gap
-  #   when "Paper"
-  #     n1_gap = gap
-  #   when "Scissors"
-  #     n2_gap = gap
-  #   when "Lizard"
-  #     n3_gap = gap
-  #   when "Spock"
-  #     n4_gap = gap
-  #   end
-  #   [n0_gap, n1_gap, n2_gap, n3_gap, n4_gap]
-  # end
-  #
-  # def calc_new_gap_value(biggest_loosing_move_total)
-  #   case biggest_loosing_move_total
-  #   when 0
-  #     20
-  #   when 1
-  #     5
-  #   else
-  #     0
-  #   end
-  # end
-  #
-  # def calc_weights_for_next_move(bad_move, biggest_loosing_move_total)
-  #   gap = calc_new_gap_value(biggest_loosing_move_total)
-  #   gaps = calc_new_gaps_for_all_moves(bad_move, gap)
-  #   update_weights_for_next_move(gaps)
-  # end
-
-  def choose_final_move(chosen_move, cntr, rnd)
-    previous_human_move = history[cntr][HMOVE]
-    pre_previous_human_move = history[cntr - 1][HMOVE]
-    previous_comp_move = history[cntr][CMOVE]
-    if previous_human_move == previous_comp_move
-      INVERSE_RULES[previous_human_move][rnd]
-    elsif pre_previous_human_move == previous_human_move
-      previous_human_move
+  def decide_final_move(pre_previous_human_move, previous_human_move, \
+                        inverse_move, chosen_move)
+    if pre_previous_human_move == previous_human_move
+      inverse_move
     else
       chosen_move
     end
   end
 
+  def choose_final_move(chosen_move)
+    index = history.size - 1
+    previous_human_move = history[index][HMOVE]
+    pre_previous_human_move = history[index - 1][HMOVE]
+    # previous_comp_move = history[index][CMOVE]
+    inverse_move = INVERSE_RULES[previous_human_move][rand(0..1)]
+    decide_final_move(pre_previous_human_move, previous_human_move, \
+                      inverse_move, chosen_move)
+  end
+
   def inject_personality_prejudice(bad_move, next_move)
-    rnd = rand(0..1)
-    cntr = history.size - 1
-    # chosen_move = VALID_MOVES[next_move - 1] # str / next_move = number!
-    chosen_move = next_move
-    prejudiced_move = PERSONALITY_MOVE_CHOICE[self.name] # str
-    final_move = if chosen_move == bad_move || chosen_move == prejudiced_move
+    prejudiced_move = PERSONALITY_MOVE_CHOICE[name]
+    final_move = if next_move == bad_move && prejudiced_move != bad_move
                    prejudiced_move
                  else
-                   choose_final_move(chosen_move, cntr, rnd)
+                   choose_final_move(next_move)
                  end
-    puts "Final Move = #{final_move}"
-    a = gets
     (VALID_MOVES.index(final_move) + 1)
   end
 
-  # def calc_weight_inverse(losing_move_counters, max)
   def calc_weights(losing_move_counters, max)
-    # inverse_weights = {}
     weights = {}
-    # weights.each do |item, weight|
     losing_move_counters.each do |item, weight|
-      # inverse_weights[item] = max / weight
-      if weight != 0
-        weights[item] = max / weight
-      else
-        weights[item] = 1
-      end
+      weights[item] = if weight != 0
+                        max / weight
+                      else
+                        1
+                      end
     end
-    # inverse_weights
     puts "Weights = #{weights}"
     weights
   end
 
-  def weighed_move(losing_move_counters) #weights)
-    # max = weights.values.reduce(:+)
+  def determine_weighed_move(losing_move_counters)
     counter_max = losing_move_counters.values.reduce(:+)
-    # inverse_weights = calc_weight_inverse(weights, max)
     weights = calc_weights(losing_move_counters, counter_max)
-    # inverse_max = inverse_weights.values.reduce(:+)
     weight_max = weights.values.reduce(:+)
-    # random_value = rand(1..inverse_max)
     random_value = rand(1..weight_max)
     puts "RAND = #{random_value}"
     sum_of_weights = 0
-    # inverse_weights.each do |item, weight|
     weights.each do |item, weight|
       sum_of_weights += weight
       return item if random_value <= sum_of_weights
@@ -372,31 +302,21 @@ class Computer < Player
   end
 
   def select_best_move_for(bad_move, losing_move_counters)
-    # new_weights = \
-    #   calc_weights_for_next_move(bad_move, biggest_loosing_move_total)
-    # next_move = select_next_move(new_weights)
-    next_move = weighed_move(losing_move_counters)
-    puts next_move
+    next_move = determine_weighed_move(losing_move_counters)
+    puts "Next Move = #{next_move}"
     inject_personality_prejudice(bad_move, next_move)
   end
 
   def next_move
-    return (rand(1..5)) if history.size < 2
+    return rand(1..5) if history.size < 2
     bad_move = ''
     update_losing_move_counters
     biggest_losing_move_total = @losing_move_counter_hash.values.max
-    if biggest_losing_move_total == 0
-      bad_move = "Spock"
-      next_move = bad_move
-      inject_personality_prejudice(bad_move, next_move)
-    else
-      @losing_move_counter_hash.each do |key, value|
-        bad_move = key if value == biggest_losing_move_total
-      end
-      select_best_move_for(bad_move, @losing_move_counter_hash)
+    return rand(1..5) if biggest_losing_move_total == 0
+    @losing_move_counter_hash.each do |key, value|
+      bad_move = key if value == biggest_losing_move_total
     end
-    # select_best_move_for(bad_move, biggest_losing_move_total)
-    # weighed_move(@losing_move_counter_hash)
+    select_best_move_for(bad_move, @losing_move_counter_hash)
   end
 
   def choose
