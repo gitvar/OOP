@@ -3,8 +3,8 @@
 
 module Misc
   def pure_string?(string)
-    !!(string =~ /^[A-Z][a-zA-Z]*(-[A-Z][a-zA-Z]*)?$/) # hyphenated names yes!
-    # !!(string =~ /^[A-z]*$/) # No hyphenated names allowed.
+    !!(string =~ /^[A-Z][a-zA-Z]*(-[A-Z][a-zA-Z]*)?$/) # Hyphenated names also.
+    # !!(string =~ /^[A-z]*$/) # No hyphens allowed in string.
   end
 end
 
