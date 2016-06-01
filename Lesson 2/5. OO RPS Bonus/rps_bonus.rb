@@ -283,7 +283,6 @@ class Computer < Player
                         1
                       end
     end
-    puts "Weights = #{weights}"
     weights
   end
 
@@ -292,17 +291,15 @@ class Computer < Player
     weights = calc_weights(losing_move_counters, counter_max)
     weight_max = weights.values.reduce(:+)
     random_value = rand(1..weight_max)
-    puts "RAND = #{random_value}"
     sum_of_weights = 0
-    weights.each do |item, weight|
+    weights.each do |weighed_move, weight|
       sum_of_weights += weight
-      return item if random_value <= sum_of_weights
+      return weighed_move if random_value <= sum_of_weights
     end
   end
 
   def select_best_move_for(bad_move, losing_move_counters)
     next_move = determine_weighed_move(losing_move_counters)
-    puts "Next Move = #{next_move}"
     inject_personality_prejudice(bad_move, next_move)
   end
 
