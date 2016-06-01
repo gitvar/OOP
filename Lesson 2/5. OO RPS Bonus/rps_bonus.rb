@@ -1,15 +1,13 @@
-# classes_rps_bonus_features.rb
+# rps_bonus.rb
 # frozen_string_literal: false
 
 module Misc
   def pure_string?(string)
     !!(string =~ /^[A-Z][a-zA-Z]*(-[A-Z][a-zA-Z]*)?$/) # Hyphenated names also.
-    # !!(string =~ /^[A-z]*$/) # No hyphens allowed in string.
   end
 end
 
 module Display
-  # The 'clear_screen' method below courtesy of Pete Hanson,
   def clear_screen
     system('clear') || system('cls')
   end
@@ -235,7 +233,7 @@ class Computer < Player
   # Look for human wins and corresponding computer moves.
   # -----------------------------------------------------
   # History Hash Structure: {Game No => [Human move, Computer move, Result]}.
-  # Result can be one of the following: 'human, 'computer', 'tie'
+  # 'Result' can be one of the following: 'human, 'computer', 'tie'
   # Example after game zero: history = {0 => ["Scissors", "Paper", "human"]}
   def update_losing_move_counters
     init_losing_move_counter_hash
@@ -247,8 +245,9 @@ class Computer < Player
   end
 
   def decide_final_move(pre_previous_human_move, previous_human_move, \
-                        inverse_move, chosen_move)
-    if pre_previous_human_move == previous_human_move
+                        inverse_move, chosen_move, previous_winner)
+    if pre_previous_human_move == previous_human_move &&
+       previous_winner == "human"
       inverse_move
     else
       chosen_move
@@ -259,10 +258,10 @@ class Computer < Player
     index = history.size - 1
     previous_human_move = history[index][HMOVE]
     pre_previous_human_move = history[index - 1][HMOVE]
-    # previous_comp_move = history[index][CMOVE]
+    previous_winner = history[index][RESULT]
     inverse_move = INVERSE_RULES[previous_human_move][rand(0..1)]
     decide_final_move(pre_previous_human_move, previous_human_move, \
-                      inverse_move, chosen_move)
+                      inverse_move, chosen_move, previous_winner)
   end
 
   def inject_personality_prejudice(bad_move, next_move)
