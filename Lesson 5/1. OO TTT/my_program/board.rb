@@ -10,6 +10,7 @@ class Board
     reset
   end
 
+  # This method is no longer needed. 
   # def get_square_at(key)
   #   @squares[key]
   # end
@@ -35,22 +36,24 @@ class Board
   def someone_won?
     !!winning_marker
   end
+  #
+  # def marker_count(line_of_squares, mark)
+  #   # line_of_squares.map { |square| mark if square.marker == mark }.count(mark)
+  #   line_of_squares.map(&:marker).count(mark)
+  # end
 
-  def marker_count(line_of_squares, mark)
-    # line_of_squares.map { |square| mark if square.marker == mark }.count(mark)
-    line_of_squares.map(&:marker).count(mark)
+  def three_identical_markers?(squares)
+    markers = squares.select(&:marked?).collect(&:marker)
+    return false if markers.size != 3
+    markers.max == markers.min
   end
 
   # return winning marker or nil
   def winning_marker
-    human_marker = TTTGame::HUMAN_MARKER
-    computer_marker = TTTGame::COMPUTER_MARKER
-
     WINNING_LINES.each do |line|
-      if marker_count(@squares.values_at(*line), human_marker) == 3
-        return human_marker
-      elsif marker_count(@squares.values_at(*line), computer_marker) == 3
-        return computer_marker
+      squares = @squares.values_at(*line) # => [square_obj, square_obj, ...]
+      if three_identical_markers?(squares)
+        return squares.first.marker
       end
     end
     nil
