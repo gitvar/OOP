@@ -101,10 +101,10 @@ class Player
   attr_reader :marker
   attr_accessor :points, :name
 
-  def initialize(marker)
+  def initialize(name, marker)
     @marker = marker
+    @name = name
     @points = 0
-    @name = ''
   end
 
   def increment_points
@@ -127,19 +127,26 @@ class TTTGame
   require 'pry'
   include Misc
 
-  HUMAN_MARKER = "X".freeze
-  COMPUTER_MARKER = "O".freeze
-  FIRST_TO_MOVE = HUMAN_MARKER
-  NO_OF_ROUNDS_TO_WIN_THE_GAME = 3
+  HUMAN_MOVES_FIRST = 1
+  COMPUTER_MOVES_FIRST = 2
+  CHOOSE_WHO_MOVES_FIRST = 3
+  FIRST_TO_MOVE = CHOOSE_WHO_MOVES_FIRST
+
+  NO_OF_ROUNDS_TO_WIN_THE_GAME = 2
 
   attr_reader :board, :human, :computer
 
   def initialize
+    @available_markers = %w(O X H # @ * 0 +)
+    @computer_names = %w(Hal Twiki R2D2 Wall-E Skynet)
+    computer_name, human_name = obtain_player_names
+    human_marker = ask_for_human_marker
+    computer_marker = choose_computer_marker(human_marker)
     @board = Board.new
-    @human = Player.new(HUMAN_MARKER)
-    @computer = Player.new(COMPUTER_MARKER)
-    obtain_player_names
-    @current_marker = FIRST_TO_MOVE
+    @human = Player.new(human_name, human_marker)
+    @computer = Player.new(computer_name, computer_marker)
+    @first_to_move = who_moves_first
+    @current_marker = @first_to_move
     @round = 1
   end
 
@@ -167,24 +174,74 @@ class TTTGame
 
   private
 
-  def define_new_computer_name
-    @computer.name = %w(Hal Twiki R2D2 Wall-E Skynet).sample
+  def who_moves_first
+    case FIRST_TO_MOVE
+    when HUMAN_MOVES_FIRST
+      @human.marker
+    when COMPUTER_MOVES_FIRST
+      @computer.marker
+    when CHOOSE_WHO_MOVES_FIRST
+      ask_who_moves_first
+    else
+      [@human.marker, @computer.marker].sample
+    end
+  end
+
+  def ask_who_moves_first
+    choice = nil
+
+    loop do
+      puts
+      puts "Please choose who will move first: 1. Human Player," \
+           " or 2. Computer Player"
+      choice = gets.chomp.to_i
+      break if [1, 2].include?(choice)
+      puts "Sorry, that is not a valid choice. Please try again."
+    end
+
+    if choice == 1
+      @human.marker
+    else
+      @computer.marker
+    end
+  end
+
+  def ask_for_human_marker
+    marker = nil
+
+    loop do
+      puts
+      puts "Please choose which marker to use: #{@available_markers}."
+      marker = gets.chomp
+      break if @available_markers.include?(marker)
+      puts "Sorry, that is not a valid name. Please try again."
+    end
+    marker
+  end
+
+  def choose_computer_marker(human_marker)
+    index = @available_markers.find_index(human_marker)
+    @available_markers.delete_at(index)
+    @available_markers.sample
+  end
+
+  def choose_new_computer_name
+    @computer_names.sample
   end
 
   def obtain_player_names
-    name = nil
+    human_name = nil
     clear_screen
     display_welcome_message
-    define_new_computer_name
 
     loop do
       puts
       puts "Please enter your name:"
-      name = gets.chomp
-      break if valid_string?(name)
+      human_name = gets.chomp
+      break if valid_string?(human_name)
       puts "Sorry, that is not a valid name. Please try again."
     end
-    @human.name = name
+    [choose_new_computer_name, human_name]
   end
 
   def display_welcome_message
@@ -202,7 +259,7 @@ class TTTGame
   end
 
   def human_turn?
-    @current_marker == HUMAN_MARKER
+    @current_marker == @human.marker
   end
 
   def display_board_static_info
@@ -213,15 +270,15 @@ class TTTGame
     puts "#{@human.name} is a #{human.marker}.  " \
          "#{@computer.name} is a #{computer.marker}."
     puts
-    puts "First one to win #{NO_OF_ROUNDS_TO_WIN_THE_GAME} rounds, wins the " \
+    puts "First one to win #{NO_OF_ROUNDS_TO_WIN_THE_GAME} rounds, wins the" \
          " game!"
     puts
   end
 
   def display_board
     display_board_static_info
-    puts "#{@human.name}'s points: #{@human.points}  " \
-         "#{@computer.name}'s points: #{@computer.points}"
+    puts "Rounds Won: #{@human.name}: #{@human.points}  " \
+         "#{@computer.name} : #{@computer.points}"
     puts
     puts "Round Number: #{@round}"
     puts
@@ -250,10 +307,10 @@ class TTTGame
   def current_player_moves
     if human_turn?
       human_moves
-      @current_marker = COMPUTER_MARKER
+      @current_marker = @computer.marker
     else
       computer_moves
-      @current_marker = HUMAN_MARKER
+      @current_marker = @human.marker
     end
   end
 
@@ -300,13 +357,16 @@ class TTTGame
   def reset_round_or_game
     board.reset
     clear_screen
-    @current_marker = FIRST_TO_MOVE
+    @current_marker = @first_to_move
     reset_game if @human.points == NO_OF_ROUNDS_TO_WIN_THE_GAME ||
                   @computer.points == NO_OF_ROUNDS_TO_WIN_THE_GAME
   end
 
   def reset_game
-    define_new_computer_name
+    @first_to_move = who_moves_first
+    @current_marker = @first_to_move
+    clear_screen
+    @computer.name = choose_new_computer_name
     @computer.points = 0
     @human.points = 0
     @round = 1
