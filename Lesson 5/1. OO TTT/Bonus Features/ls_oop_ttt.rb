@@ -1,8 +1,12 @@
 # frozen_string_literal: false
 class Board
+  require 'pry'
+
   WINNING_LINES = [[1, 2, 3], [4, 5, 6], [7, 8, 9]] + # rows
                   [[1, 4, 7], [2, 5, 8], [3, 6, 9]] + # cols
                   [[1, 5, 9], [3, 5, 7]]              # diagonals
+  DELIMITER = ', '.freeze
+  SEPARATOR = 'or'.freeze
 
   def initialize
     @squares = {}
@@ -11,6 +15,12 @@ class Board
 
   def []=(num, marker)
     @squares[num].marker = marker
+  end
+
+  def join_unmarked_keys
+    keys = unmarked_keys
+    keys[-1] = "#{SEPARATOR} #{keys.last}" if keys.size > 1
+    keys.size == 2 ? keys.join(' ') : keys.join(DELIMITER)
   end
 
   def unmarked_keys
@@ -86,19 +96,41 @@ class Square
   end
 end
 
-# class Player
-#   attr_reader :marker
-#
-#   def initialize(marker)
-#     @marker = marker
-#   end
-# end
-Player = Struct.new(:marker)
+# Player = Struct.new(:marker, :points)
+class Player
+  attr_reader :marker
+  attr_accessor :points, :name
+
+  def initialize(marker)
+    @marker = marker
+    @points = 0
+    @name = ''
+  end
+
+  def increment_points
+    @points += 1
+  end
+
+  # Below not needed as we have defined the attr_accessor above.
+  # def name=(name)
+  #   $name = name
+  # end
+end
+
+module Misc
+  def valid_string?(string)
+    !!(string =~ /^[A-Z][a-zA-Z]*(-[A-Z][a-zA-Z]*)?$/) # Hyphenated names also.
+  end
+end
 
 class TTTGame
+  require 'pry'
+  include Misc
+
   HUMAN_MARKER = "X".freeze
   COMPUTER_MARKER = "O".freeze
   FIRST_TO_MOVE = HUMAN_MARKER
+  NO_OF_ROUNDS_TO_WIN_THE_GAME = 3
 
   attr_reader :board, :human, :computer
 
@@ -106,11 +138,13 @@ class TTTGame
     @board = Board.new
     @human = Player.new(HUMAN_MARKER)
     @computer = Player.new(COMPUTER_MARKER)
+    obtain_player_names
     @current_marker = FIRST_TO_MOVE
+    @round = 1
   end
 
   def play
-    clear
+    clear_screen
     display_welcome_message
 
     loop do
@@ -122,16 +156,36 @@ class TTTGame
         clear_screen_and_display_board if human_turn?
       end
 
-      display_result
+      display_result_and_increment_round_number
       break unless play_again?
-      reset
-      display_play_again_message
+      reset_round_or_game
+      # display_play_again_message
     end
 
     display_goodbye_message
   end
 
   private
+
+  def define_new_computer_name
+    @computer.name = %w(Hal Twiki R2D2 Wall-E Skynet).sample
+  end
+
+  def obtain_player_names
+    name = nil
+    clear_screen
+    display_welcome_message
+    define_new_computer_name
+
+    loop do
+      puts
+      puts "Please enter your name:"
+      name = gets.chomp
+      break if valid_string?(name)
+      puts "Sorry, that is not a valid name. Please try again."
+    end
+    @human.name = name
+  end
 
   def display_welcome_message
     puts "Welcome to Tic Tac Toe!"
@@ -143,7 +197,7 @@ class TTTGame
   end
 
   def clear_screen_and_display_board
-    clear
+    clear_screen
     display_board
   end
 
@@ -151,15 +205,34 @@ class TTTGame
     @current_marker == HUMAN_MARKER
   end
 
+  def display_board_static_info
+    puts
+    puts "      Tic Tac Toe"
+    puts "     ============="
+    puts
+    puts "#{@human.name} is a #{human.marker}.  " \
+         "#{@computer.name} is a #{computer.marker}."
+    puts
+    puts "First one to win #{NO_OF_ROUNDS_TO_WIN_THE_GAME} rounds, wins the " \
+         " game!"
+    puts
+  end
+
   def display_board
-    puts "You're a #{human.marker}. Computer is a #{computer.marker}."
-    puts ""
+    display_board_static_info
+    puts "#{@human.name}'s points: #{@human.points}  " \
+         "#{@computer.name}'s points: #{@computer.points}"
+    puts
+    puts "Round Number: #{@round}"
+    puts
     board.draw
-    puts ""
+    puts
   end
 
   def human_moves
-    puts "Choose a square (#{board.unmarked_keys.join(', ')}): "
+    puts "Choose a square (#{board.join_unmarked_keys}): "
+    # puts "Choose a square (#{board.join_unmarked_keys}): "
+
     square = nil
     loop do
       square = gets.chomp.to_i
@@ -184,17 +257,28 @@ class TTTGame
     end
   end
 
-  def display_result
-    clear_screen_and_display_board
+  def determine_round_or_game_winning_message(player)
+    player.increment_points
+    winning_message = if player.points < NO_OF_ROUNDS_TO_WIN_THE_GAME
+                        "#{player.name} won the round!"
+                      else
+                        "#{player.name} won the game!"
+                      end
+    winning_message
+  end
 
-    case board.winning_marker
-    when human.marker
-      puts "You won!"
-    when computer.marker
-      puts "Computer won!"
-    else
-      puts "It's a tie!"
-    end
+  def display_result_and_increment_round_number
+    winning_message = case board.winning_marker
+                      when human.marker
+                        determine_round_or_game_winning_message(human)
+                      when computer.marker
+                        determine_round_or_game_winning_message(computer)
+                      else
+                        "It's a tie!"
+                      end
+    clear_screen_and_display_board
+    puts winning_message
+    @round += 1
   end
 
   def play_again?
@@ -209,14 +293,23 @@ class TTTGame
     answer == 'y'
   end
 
-  def clear
+  def clear_screen
     system "clear"
   end
 
-  def reset
+  def reset_round_or_game
     board.reset
+    clear_screen
     @current_marker = FIRST_TO_MOVE
-    clear
+    reset_game if @human.points == NO_OF_ROUNDS_TO_WIN_THE_GAME ||
+                  @computer.points == NO_OF_ROUNDS_TO_WIN_THE_GAME
+  end
+
+  def reset_game
+    define_new_computer_name
+    @computer.points = 0
+    @human.points = 0
+    @round = 1
   end
 
   def display_play_again_message
