@@ -9,7 +9,7 @@ class Board
   SEPARATOR = 'or'.freeze
 
   def initialize
-    @squares = {}
+    @squares = {} # { 1 => ' ', 2 => 'X', 3 => 'X', ... }
     reset
   end
 
@@ -33,6 +33,43 @@ class Board
 
   def someone_won?
     !!winning_marker
+  end
+
+  def the_same_markers?(arr, the_marker)
+    count = 0
+    arr.each do |mark|
+      count += 1 if mark == the_marker
+    end
+    return false if count != 2
+    true
+  end
+
+  def two_identical_markers?(squares, the_marker)
+    markers = squares.select(&:marked?).collect(&:marker) # ['X', 'O']
+    return false if markers.size != 2
+    return false unless the_same_markers?(markers, the_marker)
+    # binding.pry
+    true
+  end
+
+  def unmarked_key_for(line)
+    index = nil
+    line.each_index do |i|
+      # binding.pry
+      index = line[i] if @squares[line[i]].unmarked?
+    end
+    index
+  end
+
+  def keys_for_best_move(marker)
+    best_offensive_move_keys = []
+    WINNING_LINES.each do |line|
+      squares = @squares.values_at(*line)
+      if two_identical_markers?(squares, marker)
+        best_offensive_move_keys << unmarked_key_for(line)
+      end
+    end
+    best_offensive_move_keys
   end
 
   def winning_marker
@@ -83,8 +120,8 @@ class Square
     @marker = marker
   end
 
-  def to_s
-    @marker
+  def equal?(passed_in_marker)
+    marker == passed_in_marker
   end
 
   def unmarked?
@@ -93,6 +130,10 @@ class Square
 
   def marked?
     marker != INITIAL_MARKER
+  end
+
+  def to_s
+    @marker
   end
 end
 
@@ -166,7 +207,6 @@ class TTTGame
       display_result_and_increment_round_number
       break unless play_again?
       reset_round_or_game
-      # display_play_again_message
     end
 
     display_goodbye_message
@@ -288,7 +328,6 @@ class TTTGame
 
   def human_moves
     puts "Choose a square (#{board.join_unmarked_keys}): "
-    # puts "Choose a square (#{board.join_unmarked_keys}): "
 
     square = nil
     loop do
@@ -301,7 +340,14 @@ class TTTGame
   end
 
   def computer_moves
-    board[board.unmarked_keys.sample] = computer.marker
+    # board[board.unmarked_keys.sample] = computer.marker
+    arr = board.keys_for_best_move(computer.marker)
+    if arr.empty?
+      board[board.unmarked_keys.sample] = computer.marker
+    else
+      # binding.pry
+      board[arr.sample] = computer.marker
+    end
   end
 
   def current_player_moves
@@ -366,6 +412,7 @@ class TTTGame
     @first_to_move = who_moves_first
     @current_marker = @first_to_move
     clear_screen
+    display_play_again_message
     @computer.name = choose_new_computer_name
     @computer.points = 0
     @human.points = 0
