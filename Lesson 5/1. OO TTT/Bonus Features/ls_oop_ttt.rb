@@ -37,38 +37,6 @@ class Board
     !!winning_marker
   end
 
-  def two_identical_markers?(squares, the_marker)
-    markers = squares.select(&:marked?).collect(&:marker) # ['X', 'O']
-    markers.keep_if { |v| v == the_marker } # Check for same marker
-    return false if markers.size != 2
-    true
-  end
-
-  def unmarked_key_for(line)
-    index = nil
-    line.each_index do |i|
-      index = line[i] if @squares[line[i]].unmarked?
-    end
-    index
-  end
-
-  def keys_for_best_move(marker)
-    best_offensive_move_keys = []
-    WINNING_LINES.each do |line|
-      squares = @squares.values_at(*line) # [sq1_obj, sq2_obj, ...]
-      if two_identical_markers?(squares, marker)
-        key = unmarked_key_for(line)
-        best_offensive_move_keys << key unless !key # Don't want nil.
-      end
-    end
-    best_offensive_move_keys
-  end
-
-  def keys_for_best_block(human_marker)
-    arr = keys_for_best_move(human_marker)
-    arr.sample
-  end
-
   def winning_marker
     WINNING_LINES.each do |line|
       squares = @squares.values_at(*line)
@@ -99,7 +67,55 @@ class Board
   end
   # rubocop:enable Metrics/AbcSize
 
+  def decide_best_key_for_move(computer_marker, human_marker)
+    # Offensive
+    offensive_move_keys = keys_for_best_move(computer_marker)
+    return offensive_move_keys.sample unless offensive_move_keys.empty?
+
+    # Defensive
+    key_to_block = best_key_for_block(human_marker)
+    return key_to_block if key_to_block
+
+    # Square 5 available?
+    return 5 if @squares[5].unmarked?
+
+    # None of the above? Ok, pick a random unmarked square
+    unmarked_keys.sample
+  end
+
   private
+
+  def unmarked_key_for(line)
+    index = nil
+    line.each_index do |i|
+      index = line[i] if @squares[line[i]].unmarked?
+    end
+    index
+  end
+
+  def keys_for_best_move(marker)
+    best_offensive_move_keys = []
+    WINNING_LINES.each do |line|
+      squares = @squares.values_at(*line) # [sq1_obj, sq2_obj, ...]
+      if two_identical_markers?(squares, marker)
+        key = unmarked_key_for(line)
+        best_offensive_move_keys << key unless !key # Don't want nil.
+      end
+    end
+    best_offensive_move_keys
+  end
+
+  def best_key_for_block(human_marker)
+    keys = keys_for_best_move(human_marker)
+    keys.sample
+  end
+
+  def two_identical_markers?(squares, the_marker)
+    markers = squares.select(&:marked?).collect(&:marker) # ['X', 'O']
+    markers.keep_if { |v| v == the_marker } # Check for same marker (select!).
+    return false if markers.size != 2
+    true
+  end
 
   def three_identical_markers?(squares)
     markers = squares.select(&:marked?).collect(&:marker)
@@ -163,7 +179,6 @@ class TTTGame
   COMPUTER_MOVES_FIRST = 2
   CHOOSE_WHO_MOVES_FIRST = 3
   FIRST_TO_MOVE = CHOOSE_WHO_MOVES_FIRST
-
   NO_OF_ROUNDS_TO_WIN_THE_GAME = 2
 
   attr_reader :board, :human, :computer
@@ -329,25 +344,9 @@ class TTTGame
     board[square] = human.marker
   end
 
-  def best_key_for_block
-    board.keys_for_best_block(human.marker)
-  end
-
-  def decide_best_computer_move
-    best_move_keys = board.keys_for_best_move(computer.marker)
-    return best_move_keys.sample unless best_move_keys.empty?
-
-    best_block_key = best_key_for_block
-    return best_block_key if best_block_key
-
-    return 5 if board.squares[5].unmarked?
-
-    # pick a random unmarked square
-    board.unmarked_keys.sample
-  end
-
   def computer_moves
-    board[decide_best_computer_move] = computer.marker
+    best_key = board.decide_best_key_for_move(@computer.marker, @human.marker)
+    board[best_key] = computer.marker
   end
 
   def current_player_moves
