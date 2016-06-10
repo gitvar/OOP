@@ -2,6 +2,8 @@
 class Board
   require 'pry'
 
+  attr_reader :squares
+
   WINNING_LINES = [[1, 2, 3], [4, 5, 6], [7, 8, 9]] + # rows
                   [[1, 4, 7], [2, 5, 8], [3, 6, 9]] + # cols
                   [[1, 5, 9], [3, 5, 7]]              # diagonals
@@ -35,27 +37,16 @@ class Board
     !!winning_marker
   end
 
-  def the_same_markers?(arr, the_marker)
-    count = 0
-    arr.each do |mark|
-      count += 1 if mark == the_marker
-    end
-    return false if count != 2
-    true
-  end
-
   def two_identical_markers?(squares, the_marker)
     markers = squares.select(&:marked?).collect(&:marker) # ['X', 'O']
+    markers.keep_if { |v| v == the_marker } # Check for same marker
     return false if markers.size != 2
-    return false unless the_same_markers?(markers, the_marker)
-    # binding.pry
     true
   end
 
   def unmarked_key_for(line)
     index = nil
     line.each_index do |i|
-      # binding.pry
       index = line[i] if @squares[line[i]].unmarked?
     end
     index
@@ -64,12 +55,18 @@ class Board
   def keys_for_best_move(marker)
     best_offensive_move_keys = []
     WINNING_LINES.each do |line|
-      squares = @squares.values_at(*line)
+      squares = @squares.values_at(*line) # [sq1_obj, sq2_obj, ...]
       if two_identical_markers?(squares, marker)
-        best_offensive_move_keys << unmarked_key_for(line)
+        key = unmarked_key_for(line)
+        best_offensive_move_keys << key unless !key # Don't want nil.
       end
     end
     best_offensive_move_keys
+  end
+
+  def keys_for_best_block(human_marker)
+    arr = keys_for_best_move(human_marker)
+    arr.sample
   end
 
   def winning_marker
@@ -137,7 +134,6 @@ class Square
   end
 end
 
-# Player = Struct.new(:marker, :points)
 class Player
   attr_reader :marker
   attr_accessor :points, :name
@@ -151,11 +147,6 @@ class Player
   def increment_points
     @points += 1
   end
-
-  # Below not needed as we have defined the attr_accessor above.
-  # def name=(name)
-  #   $name = name
-  # end
 end
 
 module Misc
@@ -335,19 +326,28 @@ class TTTGame
       break if board.unmarked_keys.include?(square)
       puts "Sorry, that's not a valid choice."
     end
-
     board[square] = human.marker
   end
 
+  def best_key_for_block
+    board.keys_for_best_block(human.marker)
+  end
+
+  def decide_best_computer_move
+    best_move_keys = board.keys_for_best_move(computer.marker)
+    return best_move_keys.sample unless best_move_keys.empty?
+
+    best_block_key = best_key_for_block
+    return best_block_key if best_block_key
+
+    return 5 if board.squares[5].unmarked?
+
+    # pick a random unmarked square
+    board.unmarked_keys.sample
+  end
+
   def computer_moves
-    # board[board.unmarked_keys.sample] = computer.marker
-    arr = board.keys_for_best_move(computer.marker)
-    if arr.empty?
-      board[board.unmarked_keys.sample] = computer.marker
-    else
-      # binding.pry
-      board[arr.sample] = computer.marker
-    end
+    board[decide_best_computer_move] = computer.marker
   end
 
   def current_player_moves
