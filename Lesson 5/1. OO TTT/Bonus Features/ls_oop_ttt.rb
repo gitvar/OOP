@@ -210,7 +210,8 @@ class TTTGame
         clear_screen_and_display_board if human_turn?
       end
 
-      display_result_and_increment_round_number
+      display_result
+      increment_round_number
       break unless play_again?
       reset_round_or_game
     end
@@ -369,17 +370,20 @@ class TTTGame
     winning_message
   end
 
-  def display_result_and_increment_round_number
-    winning_message = case board.winning_marker
-                      when human.marker
-                        determine_round_or_game_winning_message(human)
-                      when computer.marker
-                        determine_round_or_game_winning_message(computer)
-                      else
-                        "It's a tie!"
-                      end
+  def display_result
+    result_message = case board.winning_marker
+                     when human.marker
+                       determine_round_or_game_winning_message(human)
+                     when computer.marker
+                       determine_round_or_game_winning_message(computer)
+                     else
+                       "It's a tie!"
+                     end
     clear_screen_and_display_board
-    puts winning_message
+    puts result_message
+  end
+
+  def increment_round_number
     @round += 1
   end
 
