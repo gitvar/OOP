@@ -1,34 +1,111 @@
 # frozen_string_literal: false
+
+module Constants
+  DELIMITER = ', '.freeze
+  SEPARATOR = 'or'.freeze
+  HUMAN_MOVES_FIRST = 1
+  COMPUTER_MOVES_FIRST = 2
+  CHOOSE_WHO_MOVES_FIRST = 3
+  FIRST_TO_MOVE = CHOOSE_WHO_MOVES_FIRST
+  NO_OF_ROUNDS_TO_WIN_THE_GAME = 2
+end
+
+module Misc
+  def valid_string?(string) # Hyphenated names are also valid.
+    !!(string =~ /^[A-Z][a-zA-Z]*(-[A-Z][a-zA-Z]*)?$/)
+  end
+end
+
+module Display
+  include Constants
+
+  def display_board_static_info
+    puts
+    puts "      Tic Tac Toe"
+    puts "     ============="
+    puts
+    puts "#{@human.name} is a #{human.marker}.  " \
+         "#{@computer.name} is a #{computer.marker}."
+    puts
+    puts "First one to win #{NO_OF_ROUNDS_TO_WIN_THE_GAME} rounds, wins the" \
+         " game!"
+    puts
+  end
+
+  def display_board
+    display_board_static_info
+
+    puts "Rounds Won: #{@human.name}: #{@human.points}  " \
+         "#{@computer.name} : #{@computer.points}"
+    puts
+    puts "Round Number: #{@round}"
+    puts
+    board.draw
+    puts
+  end
+
+  def display_result
+    clear_screen_and_display_board
+    puts case board.winning_marker
+         when human.marker
+           determine_round_or_game_winning_message_for(human)
+         when computer.marker
+           determine_round_or_game_winning_message_for(computer)
+         else
+           "It's a tie!"
+         end
+  end
+
+  def display_welcome_message
+    puts "Welcome to Tic Tac Toe!"
+    puts ""
+  end
+
+  def display_goodbye_message
+    puts "Thanks for playing Tic Tac Toe! Goodbye!"
+  end
+
+  def display_play_again_message
+    puts "Let's play again!"
+    puts ""
+  end
+
+  def clear_screen_and_display_board
+    clear_screen
+    display_board
+  end
+
+  def clear_screen
+    system "clear"
+  end
+end
+
 class Board
-  require 'pry'
+  include Constants
 
   attr_reader :squares, :available_markers
 
   WINNING_LINES = [[1, 2, 3], [4, 5, 6], [7, 8, 9]] + # rows
                   [[1, 4, 7], [2, 5, 8], [3, 6, 9]] + # cols
                   [[1, 5, 9], [3, 5, 7]]              # diagonals
-  DELIMITER = ', '.freeze
-  SEPARATOR = 'or'.freeze
   AVAILABLE_MARKERS = %w(O X H # @ * 0 +).freeze
 
   def initialize
     @squares = {} # { 1 => ' ', 2 => 'X', 3 => 'X', ... }
-    @available_markers = AVAILABLE_MARKERS
+    @available_markers = AVAILABLE_MARKERS.dup
     reset
   end
 
-  def []=(num, marker)
-    @squares[num].marker = marker
-  end
-
-  def join_unmarked_keys
-    keys = unmarked_keys
-    keys[-1] = "#{SEPARATOR} #{keys.last}" if keys.size > 1
-    keys.size == 2 ? keys.join(' ') : keys.join(DELIMITER)
+  def []=(key, marker)
+    @squares[key].marker = marker
   end
 
   def unmarked_keys
     @squares.keys.select { |key| @squares[key].unmarked? }
+  end
+
+  def valid_unmarked_key?(key)
+    unmarked_keys.include?(key)
   end
 
   def full?
@@ -128,7 +205,7 @@ class Square
 
   attr_accessor :marker
 
-  def initialize(marker=INITIAL_MARKER)
+  def initialize(marker = INITIAL_MARKER)
     @marker = marker
   end
 
@@ -150,12 +227,11 @@ class Square
 end
 
 class Player
-  attr_reader :marker
-  attr_accessor :name, :points
+  attr_accessor :name, :marker, :points
 
-  def initialize(name, marker)
-    @marker = marker
-    @name = name
+  def initialize
+    @name = nil
+    @marker = nil
     @points = 0
   end
 
@@ -164,33 +240,55 @@ class Player
   end
 end
 
-module Misc
-  def valid_string?(string) # Hyphenated names are also valid.
-    !!(string =~ /^[A-Z][a-zA-Z]*(-[A-Z][a-zA-Z]*)?$/)
+class Human < Player
+  include Misc
+
+  def initialize
+    super
+    request_human_name
+  end
+
+  def request_human_name
+    human_name = nil
+
+    loop do
+      puts
+      puts "Please enter your name:"
+      human_name = gets.chomp
+      break if valid_string?(human_name)
+      puts "Sorry, that is not a valid name. Please try again."
+    end
+    @name = human_name
+  end
+end
+
+class Computer < Player
+  COMPUTER_NAMES = %w(Hal Twiki R2D2 Wall-E Skynet).freeze
+
+  def initialize
+    super
+    @name = choose_new_name
+  end
+
+  def choose_new_name
+    COMPUTER_NAMES.sample
   end
 end
 
 class TTTGame
-  require 'pry'
-  include Misc
-
-  HUMAN_MOVES_FIRST = 1
-  COMPUTER_MOVES_FIRST = 2
-  CHOOSE_WHO_MOVES_FIRST = 3
-  FIRST_TO_MOVE = CHOOSE_WHO_MOVES_FIRST
-
-  NO_OF_ROUNDS_TO_WIN_THE_GAME = 2
-  COMPUTER_NAMES = %w(Hal Twiki R2D2 Wall-E Skynet).freeze
+  include Constants
+  include Display
 
   attr_reader :board, :human, :computer
 
   def initialize
+    clear_screen
+    display_welcome_message
     @board = Board.new
-    computer_name, human_name = obtain_player_names
-    human_marker = ask_for_human_marker
-    computer_marker = choose_computer_marker(human_marker)
-    @human = Player.new(human_name, human_marker)
-    @computer = Player.new(computer_name, computer_marker)
+    @human = Human.new
+    @computer = Computer.new
+    @human.marker = ask_for_human_marker
+    @computer.marker = choose_computer_marker(@human.marker)
     @first_to_move = who_moves_first
     @current_marker = @first_to_move
     @round = 1
@@ -252,109 +350,8 @@ class TTTGame
     end
   end
 
-  def board_marker_list
-    markers = @board.available_markers.dup
-    markers[-1] = "#{Board::SEPARATOR} #{markers.last}" if markers.size > 1
-    markers.size == 2 ? markers.join(' ') : markers.join(Board::DELIMITER)
-  end
-
-  def ask_for_human_marker
-    marker = nil
-
-    loop do
-      board_markers = board_marker_list
-      puts
-      puts "Please choose which marker to use: #{board_markers}"
-      marker = gets.chomp
-      break if board_markers.include?(marker)
-      puts "Sorry, that is not a valid choice. Please try again."
-    end
-    marker
-  end
-
-  def choose_computer_marker(human_marker)
-    available_markers = @board.available_markers.dup
-    available_markers.delete_at(available_markers.find_index(human_marker))
-    available_markers.sample
-  end
-
-  def choose_new_computer_name
-    COMPUTER_NAMES.sample
-  end
-
-  def obtain_player_names
-    human_name = nil
-    clear_screen
-    display_welcome_message
-
-    loop do
-      puts
-      puts "Please enter your name:"
-      human_name = gets.chomp
-      break if valid_string?(human_name)
-      puts "Sorry, that is not a valid name. Please try again."
-    end
-    [choose_new_computer_name, human_name]
-  end
-
-  def display_welcome_message
-    puts "Welcome to Tic Tac Toe!"
-    puts ""
-  end
-
-  def display_goodbye_message
-    puts "Thanks for playing Tic Tac Toe! Goodbye!"
-  end
-
-  def clear_screen_and_display_board
-    clear_screen
-    display_board
-  end
-
   def human_turn?
     @current_marker == @human.marker
-  end
-
-  def display_board_static_info
-    puts
-    puts "      Tic Tac Toe"
-    puts "     ============="
-    puts
-    puts "#{@human.name} is a #{human.marker}.  " \
-         "#{@computer.name} is a #{computer.marker}."
-    puts
-    puts "First one to win #{NO_OF_ROUNDS_TO_WIN_THE_GAME} rounds, wins the" \
-         " game!"
-    puts
-  end
-
-  def display_board
-    display_board_static_info
-
-    puts "Rounds Won: #{@human.name}: #{@human.points}  " \
-         "#{@computer.name} : #{@computer.points}"
-    puts
-    puts "Round Number: #{@round}"
-    puts
-    board.draw
-    puts
-  end
-
-  def human_moves
-    puts "Choose a square (#{board.join_unmarked_keys}): "
-    square = nil
-
-    loop do
-      square = gets.chomp.to_i
-      break if board.unmarked_keys.include?(square)
-      puts "Sorry, that's not a valid choice."
-    end
-    board[square] = human.marker
-  end
-
-  def computer_moves
-    best_key = board.decide_best_key_for_move(@computer.marker, @human.marker)
-    board[best_key] = computer.marker
   end
 
   def current_player_moves
@@ -377,18 +374,6 @@ class TTTGame
     winning_message
   end
 
-  def display_result
-    clear_screen_and_display_board
-    puts case board.winning_marker
-         when human.marker
-           determine_round_or_game_winning_message_for(human)
-         when computer.marker
-           determine_round_or_game_winning_message_for(computer)
-         else
-           "It's a tie!"
-         end
-  end
-
   def increment_round_number
     @round += 1
   end
@@ -399,14 +384,10 @@ class TTTGame
       puts "Would you like to play again? (y/n)"
       answer = gets.chomp.downcase
       break if %w(y n).include? answer
-      puts "Sorry, must be y or n"
+      puts "Sorry, must be 'y' or 'n'."
     end
 
     answer == 'y'
-  end
-
-  def clear_screen
-    system "clear"
   end
 
   def reset_round_or_game
@@ -422,15 +403,56 @@ class TTTGame
     @current_marker = @first_to_move
     clear_screen
     display_play_again_message
-    @computer.name = choose_new_computer_name
+    @computer.name = @computer.choose_new_name
     @computer.points = 0
     @human.points = 0
     @round = 1
   end
 
-  def display_play_again_message
-    puts "Let's play again!"
-    puts ""
+  
+
+  def format_array_for_display(array)
+    array[-1] = "#{SEPARATOR} #{array.last}" if array.size > 1
+    array.size == 2 ? array.join(' ') : array.join(DELIMITER)
+  end
+
+  def ask_for_human_marker
+    marker = nil
+
+    loop do
+      board_markers = format_array_for_display(@board.available_markers)
+      puts
+      puts "Please choose which marker to use: #{board_markers}"
+      marker = gets.chomp
+      break if board_markers.include?(marker)
+      puts "Sorry, that is not a valid choice. Please try again."
+    end
+    marker
+  end
+
+  def choose_computer_marker(human_marker)
+    available_markers = @board.available_markers
+    available_markers.delete_at(available_markers.find_index(human_marker))
+    available_markers.sample
+  end
+
+  def human_moves
+    square_numbers = format_array_for_display(@board.unmarked_keys)
+    puts "Choose a square number (#{square_numbers}): "
+    key = nil
+
+    loop do
+      key = gets.chomp.to_i
+      # break if board.unmarked_keys.include?(key)
+      break if board.valid_unmarked_key?(key)
+      puts "Sorry, that's not a valid choice."
+    end
+    board[key] = human.marker
+  end
+
+  def computer_moves
+    best_key = board.decide_best_key_for_move(@computer.marker, @human.marker)
+    board[best_key] = computer.marker
   end
 end
 
