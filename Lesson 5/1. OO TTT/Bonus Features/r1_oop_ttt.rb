@@ -1,8 +1,5 @@
 # frozen_string_literal: false
-
 class Board
-  require 'pry'
-
   attr_reader :squares, :available_markers
 
   WINNING_LINES = [[1, 2, 3], [4, 5, 6], [7, 8, 9]] + # rows
@@ -119,11 +116,11 @@ class Board
     keys_for_best_move(human_marker).sample
   end
 
-  def identical_markers?(squares, number, search_marker = nil)
+  def identical_markers?(squares, number_of_markers, search_marker = nil)
     markers = squares.select(&:marked?).collect(&:marker)
     search_marker ||= markers[0]
     markers.keep_if { |m| m == search_marker }
-    return false if markers.size != number
+    return false if markers.size != number_of_markers
     true
   end
 end
@@ -170,7 +167,7 @@ class Player
 end
 
 module Misc
-  def valid_string?(string) # Hyphenated names are also valid.
+  def valid_string?(string) # Hyphenated names are also valid: "Jean-Claude".
     !!(string =~ /^[A-Z][a-zA-Z]*(-[A-Z][a-zA-Z]*)?$/)
   end
 end
@@ -238,7 +235,6 @@ class Human < Player
 end
 
 class Computer < Player
-  require 'pry'
   COMPUTER_NAMES = %w(Hal Twiki R2D2 Wall-E Skynet).freeze
 
   def initialize(board)
@@ -289,15 +285,16 @@ module Display
   end
 
   def display_result
+    message = case board.winning_marker
+              when human.marker
+                determine_round_or_game_winning_message_for(human)
+              when computer.marker
+                determine_round_or_game_winning_message_for(computer)
+              else
+                "It's a tie!"
+              end
     clear_screen_and_display_board
-    puts case board.winning_marker
-         when human.marker
-           determine_round_or_game_winning_message_for(human)
-         when computer.marker
-           determine_round_or_game_winning_message_for(computer)
-         else
-           "It's a tie!"
-         end
+    puts message
   end
 
   def display_welcome_message
@@ -361,8 +358,8 @@ class TTTGame
       end
 
       display_result
-      increment_the_round_number
       break unless play_again?
+      increment_the_round_number
       reset_round_or_game
     end
 
