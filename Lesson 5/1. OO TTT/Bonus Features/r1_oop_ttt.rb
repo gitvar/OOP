@@ -9,7 +9,7 @@ class Board
   def initialize
     @squares = {} # { 1 => ' ', 2 => 'X', 3 => 'X', ... }
     @available_markers = %w(O X H # 0 +)
-    @human_marker = nil
+    @player_markers = []
     initialize_squares
   end
 
@@ -18,11 +18,11 @@ class Board
   end
 
   def random_marker
-    available_markers.sample
+    @player_markers[1] = available_markers.sample
   end
 
   def make_marker_unavailable(marker)
-    @human_marker = marker
+    @player_markers << marker
     @available_markers.delete_at(available_markers.find_index(marker))
   end
 
@@ -76,30 +76,6 @@ class Board
   end
   # rubocop:enable Metrics/AbcSize
 
-  def decide_best_key_for_move(computer_marker)
-    # Offensive
-    offensive_move_keys = keys_for_best_move(computer_marker)
-    return offensive_move_keys.sample unless offensive_move_keys.empty?
-
-    # Defensive
-    key_to_block = best_key_for_blocking(@human_marker)
-    return key_to_block if key_to_block
-
-    # Square 5 available?
-    return 5 if squares[5].unmarked?
-
-    # None of the above? Ok, pick a random unmarked square
-    unmarked_keys.sample
-  end
-
-  private
-
-  def unmarked_key_for(line)
-    index = nil
-    line.each_index { |i| index = line[i] if squares[line[i]].unmarked? }
-    index
-  end
-
   def keys_for_best_move(marker)
     best_offensive_move_keys = []
     WINNING_LINES.each do |line|
@@ -112,16 +88,24 @@ class Board
     best_offensive_move_keys
   end
 
-  def best_key_for_blocking(human_marker)
-    keys_for_best_move(human_marker).sample
+  def best_key_for_blocking
+    keys_for_best_move(@player_markers[0]).sample
   end
+
+  private
 
   def identical_markers?(squares, number_of_markers, search_marker = nil)
     markers = squares.select(&:marked?).collect(&:marker)
-    search_marker ||= markers[0]
+    search_marker ||= markers[0] # a = b if !a # (from Pete Hanson)
     markers.keep_if { |m| m == search_marker }
     return false if markers.size != number_of_markers
     true
+  end
+
+  def unmarked_key_for(line)
+    index = nil
+    line.each_index { |i| index = line[i] if squares[line[i]].unmarked? }
+    index
   end
 end
 
@@ -179,7 +163,7 @@ class Human < Player
   SEPARATOR = 'or'.freeze
 
   def initialize(board)
-    super(board)
+    super
     self.name = request_human_name
     self.marker = request_human_marker
   end
@@ -238,7 +222,7 @@ class Computer < Player
   COMPUTER_NAMES = %w(Hal Twiki R2D2 Wall-E Skynet).freeze
 
   def initialize(board)
-    super(board)
+    super
     self.name = choose_new_name
     self.marker = choose_marker
   end
@@ -252,8 +236,23 @@ class Computer < Player
   end
 
   def move
-    best_key = board.decide_best_key_for_move(marker)
-    board[best_key] = marker
+    board[decide_best_key_for_move] = marker
+  end
+
+  def decide_best_key_for_move
+    # Offensive
+    offensive_move_keys = board.keys_for_best_move(marker)
+    return offensive_move_keys.sample unless offensive_move_keys.empty?
+
+    # Defensive
+    key_to_block = board.best_key_for_blocking # human_marker
+    return key_to_block if key_to_block
+
+    # Square 5 available?
+    return 5 if board.valid_unmarked_key?[5]
+
+    # None of the above? Ok, pick a random unmarked square
+    board.unmarked_keys.sample
   end
 end
 
