@@ -190,9 +190,9 @@ class Human < Player
   def request_human_marker
     marker = nil
     board_markers = format_for_display(board.available_markers)
-    puts
 
     loop do
+      puts
       puts "Please choose which marker to use: #{board_markers}"
       marker = gets.chomp
       if board.valid_marker?(marker)
