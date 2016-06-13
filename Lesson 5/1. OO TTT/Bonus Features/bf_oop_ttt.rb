@@ -1,5 +1,6 @@
 # frozen_string_literal: false
 class Board
+  require 'pry'
   attr_reader :squares, :available_markers
 
   WINNING_LINES = [[1, 2, 3], [4, 5, 6], [7, 8, 9]] + # rows
@@ -7,10 +8,15 @@ class Board
                   [[1, 5, 9], [3, 5, 7]]              # diagonals
 
   def initialize
-    @squares = {} # { 1 => ' ', 2 => 'X', 3 => 'X', ... }
+    @squares = {} # { 1 => squares[0], 2 => squares[1], 3 => ... }
     @available_markers = %w(O X H # 0 +)
-    @player_markers = []
+    @player_marker = nil
+    @computer_marker = nil
     initialize_squares
+  end
+
+  def initialize_squares
+    (1..9).each { |key| squares[key] = Square.new }
   end
 
   def valid_marker?(marker)
@@ -18,16 +24,16 @@ class Board
   end
 
   def random_marker
-    @player_markers[1] = available_markers.sample
+    @computer_marker = available_markers.sample
   end
 
   def make_marker_unavailable(marker)
-    @player_markers << marker
+    @player_marker = marker
     @available_markers.delete_at(available_markers.find_index(marker))
   end
 
   def []=(key, marker)
-    squares[key].marker = marker
+    @squares[key].marker = marker
   end
 
   def unmarked_keys
@@ -56,8 +62,26 @@ class Board
     nil
   end
 
-  def initialize_squares
-    (1..9).each { |key| squares[key] = Square.new }
+  def keys_for_best_move(marker)
+    best_offensive_move_keys = []
+    # marks = []
+    WINNING_LINES.each do |line|
+      squares = @squares.values_at(*line)
+      if identical_markers?(squares, 2, marker)
+        # binding.pry
+        # Get each square's marker value for all squares with indexes in the current winning line:
+        # marks = @squares.values_at(*line).map(&:marker) # => ["X", "X", " "]
+        # key = marks.index(Squares::INITIAL_MARKER)
+
+        key = unmarked_key_for(line)
+        best_offensive_move_keys << key unless !key # Don't want nil.
+      end
+    end
+    best_offensive_move_keys
+  end
+
+  def best_key_for_blocking
+    keys_for_best_move(@player_marker).sample
   end
 
   # rubocop:disable Metrics/AbcSize
@@ -76,30 +100,25 @@ class Board
   end
   # rubocop:enable Metrics/AbcSize
 
-  def keys_for_best_move(marker)
-    best_offensive_move_keys = []
-    WINNING_LINES.each do |line|
-      squares = @squares.values_at(*line) # [sq1_obj, sq2_obj, ...]
-      if identical_markers?(squares, 2, marker)
-        key = unmarked_key_for(line)
-        best_offensive_move_keys << key unless !key # Don't want nil.
-      end
-    end
-    best_offensive_move_keys
-  end
-
-  def best_key_for_blocking
-    keys_for_best_move(@player_markers[0]).sample
-  end
-
   private
 
+# ```ruby
+#   def three_identical_markers?(squares)
+#     markers = squares.reject(&:unmarked?).collect(&:marker)
+#     squares.none?(&:unmarked?) && markers.min == markers.max
+#   end
+#
+#   def two_identical_markers(squares)
+#     markers = squares.reject(&:unmarked?).collect(&:marker)
+#     squares.one?(&:unmarked?) && markers.min == markers.max
+#   end
+# ```
   def identical_markers?(squares, number_of_markers, search_marker = nil)
     markers = squares.select(&:marked?).collect(&:marker)
     search_marker ||= markers[0] # same as: a = b if !a
     markers.keep_if { |m| m == search_marker }
-    return false if markers.size != number_of_markers
-    true
+    return true if markers.size == number_of_markers
+    false
   end
 
   def unmarked_key_for(line)
@@ -127,7 +146,7 @@ class Square
   end
 
   def marked?
-    marker != INITIAL_MARKER
+    !unmarked?
   end
 
   def to_s
@@ -139,10 +158,10 @@ class Player
   attr_accessor :name, :marker, :points, :board
 
   def initialize(board)
-    @name = nil
-    @marker = nil
-    @points = 0
     @board = board
+    @name = get_name
+    @marker = get_marker
+    @points = 0
   end
 
   def increment_points
@@ -150,23 +169,17 @@ class Player
   end
 end
 
-module Misc
-  def valid_string?(name) # Hyphenated names are also valid: "Jean-Claude".
+module NameCheck
+  def valid_name?(name) # Hyphenated names are also valid: "Jean-Claude".
     !!(name =~ /^[A-Z][a-zA-Z]*(-[A-Z][a-zA-Z]*)?$/)
   end
 end
 
 class Human < Player
-  include Misc
+  include NameCheck
 
   DELIMITER = ', '.freeze
   SEPARATOR = 'or'.freeze
-
-  def initialize(board)
-    super
-    self.name = request_human_name
-    self.marker = request_human_marker
-  end
 
   def format_for_display(arr)
     array = arr.dup
@@ -174,20 +187,20 @@ class Human < Player
     array.size == 2 ? array.join(' ') : array.join(DELIMITER)
   end
 
-  def request_human_name
+  def get_name
     human_name = nil
 
     loop do
       puts
       puts "Please enter your name:"
       human_name = gets.chomp
-      break if valid_string?(human_name)
+      break if valid_name?(human_name)
       puts "Sorry, that is not a valid name. Please try again."
     end
     self.name = human_name
   end
 
-  def request_human_marker
+  def get_marker
     marker = nil
     board_markers = format_for_display(board.available_markers)
 
@@ -220,17 +233,11 @@ end
 class Computer < Player
   COMPUTER_NAMES = %w(Hal Twiki R2D2 Wall-E Skynet).freeze
 
-  def initialize(board)
-    super
-    self.name = choose_new_name
-    self.marker = choose_marker
-  end
-
-  def choose_new_name
+  def get_name
     COMPUTER_NAMES.sample
   end
 
-  def choose_marker
+  def get_marker
     board.random_marker
   end
 
@@ -323,10 +330,10 @@ class TTTGame
   include Display
 
   NO_OF_ROUNDS_TO_WIN_THE_GAME = 3
-  HUMAN_MOVES_FIRST = 1
-  COMPUTER_MOVES_FIRST = 2
-  CHOOSE_WHO_MOVES_FIRST = 3
-  FIRST_TO_MOVE = CHOOSE_WHO_MOVES_FIRST
+  HUMAN_MOVES_FIRST = :human_first
+  COMPUTER_MOVES_FIRST = :computer_first
+  CHOOSE_WHO_MOVES_FIRST = :choose
+  FIRST_TO_MOVE = :choose
 
   attr_reader :board, :human, :computer
 
@@ -446,7 +453,7 @@ class TTTGame
     @current_marker = @first_to_move
     clear_screen
     display_play_again_message
-    computer.name = computer.choose_new_name
+    computer.name = computer.get_name
     computer.points = 0
     human.points = 0
     @round = 1
