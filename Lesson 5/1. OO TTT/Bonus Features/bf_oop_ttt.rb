@@ -205,11 +205,10 @@ class Human < Player
   end
 
   def move
-    square_numbers = format_for_display(board.unmarked_keys)
-    puts "Choose a square number (#{square_numbers}): "
     key = nil
-
+    square_numbers = format_for_display(board.unmarked_keys)
     loop do
+      puts "Choose a square number (#{square_numbers}): "
       key = gets.chomp.to_i
       break if board.valid_unmarked_key?(key)
       puts "Sorry, that's not a valid choice."
@@ -249,7 +248,7 @@ class Computer < Player
     return key_to_block if key_to_block
 
     # Square 5 available?
-    return 5 if board.valid_unmarked_key?[5]
+    return 5 if board.valid_unmarked_key?(5)
 
     # None of the above? Ok, pick a random unmarked square
     board.unmarked_keys.sample
@@ -323,12 +322,11 @@ end
 class TTTGame
   include Display
 
+  NO_OF_ROUNDS_TO_WIN_THE_GAME = 3
   HUMAN_MOVES_FIRST = 1
   COMPUTER_MOVES_FIRST = 2
   CHOOSE_WHO_MOVES_FIRST = 3
-
   FIRST_TO_MOVE = CHOOSE_WHO_MOVES_FIRST
-  NO_OF_ROUNDS_TO_WIN_THE_GAME = 2
 
   attr_reader :board, :human, :computer
 
