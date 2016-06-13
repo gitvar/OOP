@@ -96,7 +96,7 @@ class Board
 
   def identical_markers?(squares, number_of_markers, search_marker = nil)
     markers = squares.select(&:marked?).collect(&:marker)
-    search_marker ||= markers[0] # a = b if !a # (from Pete Hanson)
+    search_marker ||= markers[0] # same as: a = b if !a
     markers.keep_if { |m| m == search_marker }
     return false if markers.size != number_of_markers
     true
@@ -151,8 +151,8 @@ class Player
 end
 
 module Misc
-  def valid_string?(string) # Hyphenated names are also valid: "Jean-Claude".
-    !!(string =~ /^[A-Z][a-zA-Z]*(-[A-Z][a-zA-Z]*)?$/)
+  def valid_string?(name) # Hyphenated names are also valid: "Jean-Claude".
+    !!(name =~ /^[A-Z][a-zA-Z]*(-[A-Z][a-zA-Z]*)?$/)
   end
 end
 
