@@ -1,4 +1,5 @@
 # frozen_string_literal: false
+
 class Board
   require 'pry'
   attr_reader :squares, :available_markers
@@ -19,16 +20,27 @@ class Board
     (1..9).each { |key| squares[key] = Square.new }
   end
 
-  def valid_marker?(marker)
-    available_markers.include?(marker)
+  def valid?(object)
+    if object.class == String
+      available_markers.include?(object)
+    else
+      unmarked_keys.include?(object)
+    end
   end
 
   def random_marker
     @computer_marker = available_markers.sample
   end
 
-  def assign_and_make_unavailable(marker)
+  def random_key
+    unmarked_keys.sample
+  end
+
+  def assign(marker)
     @human_marker = marker
+  end
+
+  def remove(marker)
     @available_markers.delete_at(available_markers.find_index(marker))
   end
 
@@ -38,10 +50,6 @@ class Board
 
   def unmarked_keys
     squares.keys.select { |key| squares[key].unmarked? }
-  end
-
-  def valid_unmarked_key?(key)
-    unmarked_keys.include?(key)
   end
 
   def full?
@@ -55,59 +63,55 @@ class Board
   # rubocop:disable Metrics/AbcSize
   def draw
     puts "     |     |"
-    puts "  #{@squares[1]}  |  #{@squares[2]}  |  #{@squares[3]}"
+    puts "  #{@squares[1].marker}  |  #{@squares[2].marker}  | " \
+         "#{@squares[3].marker}"
     puts "     |     |"
     puts "-----+-----+-----"
     puts "     |     |"
-    puts "  #{@squares[4]}  |  #{@squares[5]}  |  #{@squares[6]}"
+    puts "  #{@squares[4].marker}  |  #{@squares[5].marker}  | " \
+         "#{@squares[6].marker}"
     puts "     |     |"
     puts "-----+-----+-----"
     puts "     |     |"
-    puts "  #{@squares[7]}  |  #{@squares[8]}  |  #{@squares[9]}"
+    puts "  #{@squares[7].marker}  |  #{@squares[8].marker}  | " \
+         "#{@squares[9].marker}"
     puts "     |     |"
   end
   # rubocop:enable Metrics/AbcSize
 
+  def three_identical_squares?(squares)
+    markers = squares.reject(&:unmarked?).collect(&:marker)
+    squares.none?(&:unmarked?) && markers.min == markers.max
+  end
+
   def winning_marker
     WINNING_LINES.each do |line|
       squares = @squares.values_at(*line)
-      if identical_markers?(squares, 3)
-        return squares.first.marker
+      return squares.first.marker if three_identical_squares?(squares)
+    end
+    nil
+  end
+
+  def two_identical_squares?(squares, mark)
+    marks = squares.reject(&:unmarked?).collect(&:marker)
+    squares.one?(&:unmarked?) && marks.min == mark && marks.max == mark
+  end
+
+  def best_move_for(marker)
+    WINNING_LINES.each do |line|
+      squares = @squares.values_at(*line)
+      if two_identical_squares?(squares, marker)
+        key = line[squares.index(&:unmarked?)] # NBNBNB
+        return key if key
+      else
+        next
       end
     end
     nil
   end
 
-  def keys_for_best_move(marker)
-    best_offensive_move_keys = []
-    WINNING_LINES.each do |line|
-      squares = @squares.values_at(*line)
-      if identical_markers?(squares, 2, marker)
-        key = unmarked_key_for(line)
-        best_offensive_move_keys << key unless !key # Don't want nil.
-      end
-    end
-    best_offensive_move_keys
-  end
-
-  def best_key_for_blocking
-    keys_for_best_move(@human_marker).sample
-  end
-
-  private
-
-  def identical_markers?(squares, number_of_markers, search_marker = nil)
-    markers = squares.select(&:marked?).collect(&:marker)
-    search_marker ||= markers[0] # same as: a = b if !a
-    markers.keep_if { |m| m == search_marker }
-    return true if markers.size == number_of_markers
-    false
-  end
-
-  def unmarked_key_for(line)
-    index = nil
-    line.each_index { |i| index = line[i] if squares[line[i]].unmarked? }
-    index
+  def defensive_key
+    best_move_for(@human_marker)
   end
 end
 
@@ -130,10 +134,6 @@ class Square
 
   def marked?
     !unmarked?
-  end
-
-  def to_s
-    @marker
   end
 end
 
@@ -191,8 +191,9 @@ class Human < Player
       puts
       puts "Please choose which marker to use: #{board_markers}"
       marker = gets.chomp
-      if board.valid_marker?(marker)
-        board.assign_and_make_unavailable(marker)
+      if board.valid?(marker)
+        board.assign(marker)
+        board.remove(marker)
         break
       end
       puts "Sorry, that is not a valid choice. Please try again."
@@ -206,7 +207,7 @@ class Human < Player
     loop do
       puts "Choose a square number (#{square_numbers}): "
       key = gets.chomp.to_i
-      break if board.valid_unmarked_key?(key)
+      break if board.valid?(key)
       puts "Sorry, that's not a valid choice."
     end
     board[key] = marker
@@ -225,29 +226,30 @@ class Computer < Player
   end
 
   def move
-    board[decide_best_key_for_move] = marker
+    board[best_key] = marker
   end
 
-  def decide_best_key_for_move
+  def best_key
     # Offensive
-    offensive_move_keys = board.keys_for_best_move(marker)
-    return offensive_move_keys.sample unless offensive_move_keys.empty?
+    offensive_key = board.best_move_for(marker)
+    return offensive_key unless !offensive_key
 
     # Defensive
-    key_to_block = board.best_key_for_blocking # human_marker
-    return key_to_block if key_to_block
+    key_to_block = board.defensive_key
+    return key_to_block unless !key_to_block
 
     # Square 5 available?
-    return 5 if board.valid_unmarked_key?(5)
+    key = 5
+    return key if board.valid?(key)
 
     # None of the above? Ok, pick a random unmarked square
-    board.unmarked_keys.sample
+    board.random_key
   end
 end
 
 module Display
   def display_board_static_info
-    rounds = TTTGame::NO_OF_ROUNDS_TO_WIN_THE_GAME
+    rounds = TTTGame::NO_OF_ROUNDS_TO_WIN_A_GAME
     puts
     puts "      Tic Tac Toe"
     puts "     ============="
@@ -312,7 +314,7 @@ end
 class TTTGame
   include Display
 
-  NO_OF_ROUNDS_TO_WIN_THE_GAME = 3
+  NO_OF_ROUNDS_TO_WIN_A_GAME = 3
   HUMAN_MOVES_FIRST = :human_first
   COMPUTER_MOVES_FIRST = :computer_first
   CHOOSE_WHO_MOVES_FIRST = :choose
@@ -399,7 +401,7 @@ class TTTGame
 
   def determine_round_or_game_winning_message_for(player)
     player.increment_points
-    winning_message = if player.points < NO_OF_ROUNDS_TO_WIN_THE_GAME
+    winning_message = if player.points < NO_OF_ROUNDS_TO_WIN_A_GAME
                         "#{player.name} won the round!"
                       else
                         "#{player.name} won the game!"
@@ -427,8 +429,8 @@ class TTTGame
     board.initialize_squares
     clear_screen
     @current_marker = @first_to_move
-    reset_game if human.points == NO_OF_ROUNDS_TO_WIN_THE_GAME ||
-                  computer.points == NO_OF_ROUNDS_TO_WIN_THE_GAME
+    reset_game if human.points == NO_OF_ROUNDS_TO_WIN_A_GAME ||
+                  computer.points == NO_OF_ROUNDS_TO_WIN_A_GAME
   end
 
   def reset_game
