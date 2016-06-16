@@ -1,7 +1,6 @@
 # frozen_string_literal: false
 
 class Board
-  require 'pry'
   attr_reader :squares, :available_markers
 
   WINNING_LINES = [[1, 2, 3], [4, 5, 6], [7, 8, 9]] + # rows
