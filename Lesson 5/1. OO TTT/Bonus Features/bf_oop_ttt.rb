@@ -100,12 +100,8 @@ class Board
   def best_move_for(marker)
     WINNING_LINES.each do |line|
       squares = @squares.values_at(*line)
-      if two_identical_squares?(squares, marker)
-        key = line[squares.index(&:unmarked?)] # NBNBNB
-        return key if key
-      else
-        next
-      end
+      return line[squares.index(&:unmarked?)] \
+       if two_identical_squares?(squares, marker)
     end
     nil
   end
@@ -152,17 +148,13 @@ class Player
   end
 end
 
-module NameCheck
+class Human < Player
+  DELIMITER = ', '.freeze
+  SEPARATOR = 'or'.freeze
+
   def valid_name?(name) # Hyphenated names are also valid: "Jean-Claude".
     !!(name =~ /^[A-Z][a-zA-Z]*(-[A-Z][a-zA-Z]*)?$/)
   end
-end
-
-class Human < Player
-  include NameCheck
-
-  DELIMITER = ', '.freeze
-  SEPARATOR = 'or'.freeze
 
   def format_for_display(arr)
     array = arr.dup
