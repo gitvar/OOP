@@ -69,7 +69,12 @@ class Hand
     return card.value.to_i if (1..10).cover?(card.value.to_i)
     return 10 if %w(Jack Queen King).include?(card.value)
     return 11 if card.value == 'Ace'
-    return 1 if card.value == 'Ace_1'
+    1 # if card.value == 'Ace_1'
+  end
+
+  def hit
+    self.card = @deck.deal_card
+    change_aces if total > WINNING_TOTAL
   end
 
   def card=(new_card)
@@ -103,10 +108,6 @@ class Hand
 end
 
 class Human < Hand
-  def valid?(answer)
-    !!(answer =~ /^[hs]?$/)
-  end
-
   def stay
     answer = nil
 
@@ -114,26 +115,14 @@ class Human < Hand
       puts
       puts "(H)it or (S)tay?"
       answer = gets.chomp.downcase
-      break if valid?(answer)
+      break if %w(h s).include?(answer)
       puts "Sorry, that is not a valid choice! Please try again."
     end
     answer == 's'
   end
-
-  def hit
-    self.card = @deck.deal_card
-    change_aces if total > WINNING_TOTAL
-  end
 end
 
 class Dealer < Hand
-  def hit
-    loop do
-      change_aces if total > WINNING_TOTAL
-      break if total >= DEALER_MAX
-      self.card = @deck.deal_card
-    end
-  end
 end
 
 module Display
@@ -207,7 +196,7 @@ class TwentyOne
 
   def dealer_turn
     loop do
-      break if someone_got_21? || player.busted?
+      break if someone_got_21? || dealer.busted?
       break if dealer.total >= DEALER_MAX
       dealer.hit
     end
