@@ -1,15 +1,23 @@
 # frozen_string_literal: false
+module Constants
+  WINNING_TOTAL = 21
+  DEALER_MAX = 17
+end
+
 class Deck
   attr_reader :deck
+
+  CARD_SUITS = %w(Hearts Diamonds Spades Clubs).freeze
+  CARD_VALUES = %w(1 2 3 4 5 6 7 8 9 10 Jack Queen King Ace).freeze
 
   def initialize
     @deck = shuffled_deck
   end
 
   def shuffled_deck
-    card_types = %w(Hearts Diamonds Spades Clubs)
-    card_values = %w(1 2 3 4 5 6 7 8 9 10 Jack Queen King Ace)
-    card_values.product(card_types).shuffle
+    new_deck = CARD_VALUES.product(CARD_SUITS)
+    new_deck.map! { |card| Card.new(card[0], card[1]) }
+    new_deck.shuffle
   end
 
   def deal_card
@@ -17,8 +25,18 @@ class Deck
   end
 end
 
+class Card
+  attr_accessor :value, :suit
+
+  def initialize(value, suit)
+    @value = value
+    @suit = suit
+  end
+end
+
 class Hand
-  require 'pry'
+  include Constants
+
   attr_accessor :card, :cards, :name, :points
 
   def initialize(deck, name)
@@ -28,37 +46,47 @@ class Hand
     @points = 0
   end
 
+  def change_aces
+    cards.each do |card|
+      if card.value == "Ace"
+        card.value = "Ace_1"
+        break if total <= WINNING_TOTAL
+      end
+    end
+  end
+
+  def update_total
+    @points = 0
+    cards.each { |card| @points += value_of(card) }
+  end
+
+  def total
+    update_total
+    @points
+  end
+
   def value_of(card)
-    return card[0].to_i if (1..10).include?(card[0].to_i)
-    return 10 if %w(Jack Queen King).include?(card[0])
-    return 11 if card[0] == 'Ace'
+    return card.value.to_i if (1..10).cover?(card.value.to_i)
+    return 10 if %w(Jack Queen King).include?(card.value)
+    return 11 if card.value == 'Ace'
+    return 1 if card.value == 'Ace_1'
   end
 
   def card=(new_card)
     @cards << new_card
-    @points = @points + value_of(new_card)
-  end
-
-  def hit
-    puts "#{@name} chose to receive a new card!"
-    self.card = @deck.deal_card
-  end
-
-  def stay
-    puts "#{@name} chose to stay."
+    update_total
   end
 
   def busted?
-    @points > 21
+    @points > WINNING_TOTAL
   end
 
-  def total
-    @points
-  end
-
-  def format_for_display(arr)
-    array = arr.dup
-    array.map! { |card| "#{card[0]} of #{card[1]}" }
+  def format_for_display(array)
+    array.map do |card|
+      card_value = card.value
+      card_value = "Ace" if card.value == "Ace_1"
+      "#{card_value} of #{card.suit}"
+    end
   end
 
   def show_cards
@@ -69,42 +97,41 @@ class Hand
     puts
     puts format_for_display(cards)
     puts
-    puts "#{@name}'s total is: #{total}"
+    puts "#{name}'s total is: #{total}"
+    puts
   end
 end
 
 class Human < Hand
-  # def valid?(answer)
-  #   !!(answer =~ /^[hs]?$/)
-  # end
-  #
-  # def turn_choice
-  #   answer = nil
-  #
-  #   loop do
-  #     puts
-  #     puts "(H)it or (S)tay?"
-  #     answer = gets.chomp.downcase
-  #     break if valid?(answer)
-  #     puts "Sorry, that is not a valid choice! Please try again."
-  #   end
-  #   answer
-  # end
-  #
-  # def turn
-  #   loop do
-  #     break if turn_choice == 's'
-  #     hit
-  #     game.display_game_screen
-  #   end
-  # end
+  def valid?(answer)
+    !!(answer =~ /^[hs]?$/)
+  end
+
+  def stay
+    answer = nil
+
+    loop do
+      puts
+      puts "(H)it or (S)tay?"
+      answer = gets.chomp.downcase
+      break if valid?(answer)
+      puts "Sorry, that is not a valid choice! Please try again."
+    end
+    answer == 's'
+  end
+
+  def hit
+    self.card = @deck.deal_card
+    change_aces if total > WINNING_TOTAL
+  end
 end
 
 class Dealer < Hand
-  def turn
+  def hit
     loop do
-      break if points >= 17
-      hit
+      change_aces if total > WINNING_TOTAL
+      break if total >= DEALER_MAX
+      self.card = @deck.deal_card
     end
   end
 end
@@ -144,13 +171,13 @@ module Display
 end
 
 class TwentyOne
-  require 'pry'
+  include Constants
   include Display
 
   attr_accessor :deck, :player, :dealer
 
   def initialize
-    @human_name = human_player_name
+    @human_name = name
     reset_game
   end
 
@@ -160,7 +187,7 @@ class TwentyOne
       deal_initial_cards
       player.show_cards
       player_turn
-      dealer.turn
+      dealer_turn
       someone_busted? || someone_won?
       break unless play_again?
       reset_game
@@ -169,29 +196,20 @@ class TwentyOne
     puts "Thanks for playing 'TwentyOne'! Goodbye."
   end
 
-  def valid?(answer)
-    !!(answer =~ /^[hs]?$/)
-  end
-
-  def turn_choice
-    answer = nil
-
-    loop do
-      puts
-      puts "(H)it or (S)tay?"
-      answer = gets.chomp.downcase
-      break if valid?(answer)
-      puts "Sorry, that is not a valid choice! Please try again."
-    end
-    answer
-  end
-
   def player_turn
     loop do
-      break if turn_choice == 's'
+      break if someone_got_21? || player.busted?
+      break if player.stay
       player.hit
       display_game_screen
-      break if player.busted?
+    end
+  end
+
+  def dealer_turn
+    loop do
+      break if someone_got_21? || player.busted?
+      break if dealer.total >= DEALER_MAX
+      dealer.hit
     end
   end
 
@@ -215,18 +233,26 @@ class TwentyOne
   end
 
   def someone_won?
-      display_results
-      puts
-    if player.points == 21
-      puts "You got 21, you win!"
-    elsif dealer.points == 21
-      puts "Dealer got 21, and wins!"
-    elsif player.points > dealer.points
-      puts "You win!"
-    elsif dealer.points > player.points
-      puts "Dealer wins!"
+    if player.total == WINNING_TOTAL
+      display_game_screen
+      puts "YOU GOT 21, YOU WIN!"
     else
-      puts "It's a tie!"
+      check_other_win_permutations
+    end
+  end
+
+  def check_other_win_permutations
+    player_total = player.total
+    dealer_total = dealer.total
+    display_results
+    if dealer.total == WINNING_TOTAL
+      puts "DEALER GOT 21, AND WINS!"
+    elsif player_total > dealer_total
+      puts "YOU WIN!"
+    elsif dealer_total > player_total
+      puts "DEALER WINS!"
+    elsif dealer_total == player_total
+      puts "IT'S A TIE!"
     end
   end
 
@@ -234,12 +260,12 @@ class TwentyOne
     if player.busted?
       display_game_screen
       puts
-      puts "You went bust, Dealer wins!"
+      puts "YOU WENT BUST, DEALER WINS!"
       true
     elsif dealer.busted?
       display_results
       puts
-      puts "Dealer went bust, you win!"
+      puts "DEALER WENT BUST, YOU WIN!"
       true
     else
       false
@@ -247,7 +273,7 @@ class TwentyOne
   end
 
   def someone_got_21?
-    player.points == 21 || dealer.points == 21
+    player.points == WINNING_TOTAL || dealer.points == WINNING_TOTAL
   end
 
   def deal_initial_cards
@@ -261,19 +287,18 @@ class TwentyOne
     !!(name =~ /^[A-Z][a-zA-Z]*(-[A-Z][a-zA-Z]*)?$/)
   end
 
-  def human_player_name
-    # display_welcome_message
-    # human_name = nil
-    #
-    # loop do
-    #   puts
-    #   puts "Please enter your name:"
-    #   human_name = gets.chomp
-    #   break if valid_name?(human_name)
-    #   puts "Sorry, that is not a valid name! Please try again."
-    # end
-    # human_name
-    "Ben"
+  def name
+    display_welcome_message
+    human_name = nil
+
+    loop do
+      puts
+      puts "Please enter your name:"
+      human_name = gets.chomp
+      break if valid_name?(human_name)
+      puts "Sorry, that is not a valid name! Please try again."
+    end
+    human_name
   end
 end
 
