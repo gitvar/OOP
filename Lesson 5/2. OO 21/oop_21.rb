@@ -2,13 +2,12 @@
 module Constants
   WINNING_TOTAL = 21
   DEALER_MAX = 17
+  CARD_SUITS = %w(Hearts Diamonds Spades Clubs).freeze
+  CARD_VALUES = %w(1 2 3 4 5 6 7 8 9 10 Jack Queen King Ace).freeze
 end
 
 class Deck
-  attr_reader :deck
-
-  CARD_SUITS = %w(Hearts Diamonds Spades Clubs).freeze
-  CARD_VALUES = %w(1 2 3 4 5 6 7 8 9 10 Jack Queen King Ace).freeze
+  include Constants
 
   def initialize
     @deck = shuffled_deck
@@ -16,8 +15,7 @@ class Deck
 
   def shuffled_deck
     new_deck = CARD_VALUES.product(CARD_SUITS)
-    new_deck.map! { |card| Card.new(card[0], card[1]) }
-    new_deck.shuffle
+    new_deck.map! { |card| Card.new(card[0], card[1]) }.shuffle
   end
 
   def deal_card
@@ -37,7 +35,7 @@ end
 class Hand
   include Constants
 
-  attr_accessor :card, :cards, :name, :points
+  attr_accessor :name, :points
 
   def initialize(deck, name)
     @cards = []
@@ -47,7 +45,7 @@ class Hand
   end
 
   def change_aces
-    cards.each do |card|
+    @cards.each do |card|
       if card.value == "Ace"
         card.value = "Ace_1"
         break if total <= WINNING_TOTAL
@@ -55,13 +53,13 @@ class Hand
     end
   end
 
-  def update_total
+  def sum_points
     @points = 0
-    cards.each { |card| @points += value_of(card) }
+    @cards.each { |card| @points += value_of(card) }
   end
 
   def total
-    update_total
+    sum_points
     @points
   end
 
@@ -79,15 +77,15 @@ class Hand
 
   def card=(new_card)
     @cards << new_card
-    update_total
+    sum_points
   end
 
   def busted?
     @points > WINNING_TOTAL
   end
 
-  def format_for_display(array)
-    array.map do |card|
+  def format_cards_for_display
+    @cards.map do |card|
       card_value = card.value
       card_value = "Ace" if card.value == "Ace_1"
       "#{card_value} of #{card.suit}"
@@ -95,12 +93,13 @@ class Hand
   end
 
   def show_cards
+    change_aces if total > WINNING_TOTAL
     heading = "#{name}'s cards:"
     puts
     puts heading
     heading.size.times { |_| print "=" }
     puts
-    puts format_for_display(cards)
+    puts format_cards_for_display
     puts
     puts "#{name}'s total is: #{total}"
     puts
@@ -130,20 +129,18 @@ module Display
     system('clear') || system('cls')
   end
 
-  def blank_lines(n)
-    n.times { puts }
-  end
-
   def display_welcome_message
     clear_screen
-    blank_lines(2)
+    puts
+    puts
     puts "Welcome to 'TwentyOne', the game."
     puts
   end
 
   def display_game_heading
     clear_screen
-    blank_lines(2)
+    puts
+    puts
     puts " TwentyOne "
     puts "==========="
   end
@@ -160,8 +157,8 @@ module Display
 end
 
 class TwentyOne
-  include Constants
   include Display
+  include Constants
 
   attr_accessor :deck, :player, :dealer
 
@@ -186,6 +183,7 @@ class TwentyOne
   end
 
   def player_turn
+    player.change_aces if player.total > WINNING_TOTAL
     loop do
       break if someone_got_21? || player.busted?
       break if player.stay
@@ -195,6 +193,7 @@ class TwentyOne
   end
 
   def dealer_turn
+    dealer.change_aces
     loop do
       break if someone_got_21? || dealer.busted?
       break if dealer.total >= DEALER_MAX
@@ -231,10 +230,10 @@ class TwentyOne
   end
 
   def check_other_win_permutations
-    player_total = player.total
-    dealer_total = dealer.total
+    player_total = player.total # This is for Rubocop
+    dealer_total = dealer.total # This is for Rubocop
     display_results
-    if dealer.total == WINNING_TOTAL
+    if dealer_total == WINNING_TOTAL
       puts "DEALER GOT 21, AND WINS!"
     elsif player_total > dealer_total
       puts "YOU WIN!"
@@ -246,14 +245,13 @@ class TwentyOne
   end
 
   def someone_busted?
+    puts
     if player.busted?
       display_game_screen
-      puts
       puts "YOU WENT BUST, DEALER WINS!"
       true
     elsif dealer.busted?
       display_results
-      puts
       puts "DEALER WENT BUST, YOU WIN!"
       true
     else
@@ -267,8 +265,8 @@ class TwentyOne
 
   def deal_initial_cards
     2.times do
-      player.card = deck.deal_card
-      dealer.card = deck.deal_card
+      player.hit
+      dealer.hit
     end
   end
 
