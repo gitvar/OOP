@@ -35,7 +35,7 @@ end
 class Hand
   include Constants
 
-  attr_accessor :name, :points
+  attr_accessor :name
 
   def initialize(deck, name)
     @cards = []
@@ -46,42 +46,40 @@ class Hand
 
   def change_aces
     @cards.each do |card|
-      if card.value == "Ace"
-        card.value = "Ace_1"
-        break if total <= WINNING_TOTAL
-      end
+      card.value = "Ace_1" if card.value == "Ace"
+      break if sum_of_points <= WINNING_TOTAL
     end
-  end
-
-  def sum_points
-    @points = 0
-    @cards.each { |card| @points += value_of(card) }
-  end
-
-  def total
-    sum_points
-    @points
   end
 
   def value_of(card)
     return card.value.to_i if (1..10).cover?(card.value.to_i)
-    return 10 if %w(Jack Queen King).include?(card.value)
     return 11 if card.value == 'Ace'
-    1 # if card.value == 'Ace_1'
+    return 1 if card.value == 'Ace_1'
+    10
+  end
+
+  def sum_of_points
+    @points = 0
+    @cards.each { |card| @points += value_of(card) }
+    @points
+  end
+
+  def total
+    change_aces if sum_of_points > WINNING_TOTAL
+    @points
   end
 
   def hit
-    self.card = @deck.deal_card
-    change_aces if total > WINNING_TOTAL
-  end
-
-  def card=(new_card)
-    @cards << new_card
-    sum_points
+    @cards << @deck.deal_card
+    total
   end
 
   def busted?
-    @points > WINNING_TOTAL
+    total > WINNING_TOTAL
+  end
+
+  def got_21?
+    total == WINNING_TOTAL
   end
 
   def format_cards_for_display
@@ -93,15 +91,14 @@ class Hand
   end
 
   def show_cards
-    change_aces if total > WINNING_TOTAL
     heading = "#{name}'s cards:"
-    puts
     puts heading
     heading.size.times { |_| print "=" }
     puts
     puts format_cards_for_display
     puts
     puts "#{name}'s total is: #{total}"
+    puts
     puts
   end
 end
@@ -133,7 +130,7 @@ module Display
     clear_screen
     puts
     puts
-    puts "Welcome to 'TwentyOne', the game."
+    puts "Welcome to 'Twenty-One', the game."
     puts
   end
 
@@ -145,13 +142,13 @@ module Display
     puts "==========="
   end
 
-  def display_game_screen
+  def display_player_hand
     display_game_heading
     player.show_cards
   end
 
-  def display_results
-    display_game_screen
+  def display_both_hands
+    display_player_hand
     dealer.show_cards
   end
 end
@@ -174,28 +171,26 @@ class TwentyOne
       player.show_cards
       player_turn
       dealer_turn
-      someone_busted? || someone_won?
+      busted? || player_win? || dealer_win? || tie?
       break unless play_again?
       reset_game
     end
     puts
-    puts "Thanks for playing 'TwentyOne'! Goodbye."
+    puts "Thanks for playing 'Twenty-One'! Goodbye."
   end
 
   def player_turn
-    player.change_aces if player.total > WINNING_TOTAL
     loop do
-      break if someone_got_21? || player.busted?
+      break if player.got_21? || player.busted?
       break if player.stay
       player.hit
-      display_game_screen
+      display_player_hand
     end
   end
 
   def dealer_turn
-    dealer.change_aces
     loop do
-      break if someone_got_21? || dealer.busted?
+      break if busted? || dealer.got_21?
       break if dealer.total >= DEALER_MAX
       dealer.hit
     end
@@ -220,47 +215,52 @@ class TwentyOne
     @dealer = Dealer.new(@deck, "Dealer")
   end
 
-  def someone_won?
-    if player.total == WINNING_TOTAL
-      display_game_screen
+  def player_win?
+    return false unless player.got_21? || dealer.total < player.total
+    if player.got_21?
+      display_player_hand
       puts "YOU GOT 21, YOU WIN!"
     else
-      check_other_win_permutations
+      display_both_hands
+      puts "YOU WIN!"
     end
+    true
   end
 
-  def check_other_win_permutations
-    player_total = player.total # This is for Rubocop
-    dealer_total = dealer.total # This is for Rubocop
-    display_results
-    if dealer_total == WINNING_TOTAL
+  def dealer_win?
+    dealer_total = dealer.total
+    player_total = player.total
+    return false unless dealer.got_21? || dealer_total > player_total
+    display_both_hands
+    if dealer.got_21?
       puts "DEALER GOT 21, AND WINS!"
-    elsif player_total > dealer_total
-      puts "YOU WIN!"
     elsif dealer_total > player_total
       puts "DEALER WINS!"
-    elsif dealer_total == player_total
-      puts "IT'S A TIE!"
     end
+    true
   end
 
-  def someone_busted?
-    puts
+  def tie?
+    return false unless dealer.total == player.total
+    display_both_hands
+    puts "IT'S A TIE!"
+    true
+  end
+
+  def busted?
+    return false if player.got_21? || dealer.got_21?
     if player.busted?
-      display_game_screen
+      display_player_hand
+      puts
       puts "YOU WENT BUST, DEALER WINS!"
-      true
+      return true
     elsif dealer.busted?
-      display_results
+      display_both_hands
+      puts
       puts "DEALER WENT BUST, YOU WIN!"
-      true
-    else
-      false
+      return true
     end
-  end
-
-  def someone_got_21?
-    player.points == WINNING_TOTAL || dealer.points == WINNING_TOTAL
+    false
   end
 
   def deal_initial_cards
