@@ -162,6 +162,11 @@ module Display
     display_player_hand
     dealer.show_cards
   end
+
+  def display_goodbye_message
+    puts
+    puts "Thanks for playing 'Twenty-One'! Goodbye."
+  end
 end
 
 class TwentyOne
@@ -206,8 +211,7 @@ class TwentyOne
       break unless play_again?
       setup_new_game
     end
-    puts
-    puts "Thanks for playing 'Twenty-One'! Goodbye."
+    display_goodbye_message
   end
 
   def player_turn
@@ -294,13 +298,8 @@ class TwentyOne
     true
   end
 
-  def busted?
-    if player.busted? && dealer.busted?
-      update_scores
-      display_both_hands
-      display_result(nil, "SORRY, YOU BOTH WENT BUST!")
-      return true
-    elsif player.busted?
+  def either_one_busted?
+    if player.busted?
       update_scores(:dealer)
       display_player_hand
       display_result(:dealer, "YOU WENT BUST, THE DEALER WINS!")
@@ -314,14 +313,34 @@ class TwentyOne
     false
   end
 
+  def busted?
+    if player.busted? && dealer.busted?
+      update_scores
+      display_both_hands
+      display_result(nil, "SORRY, YOU BOTH WENT BUST!")
+      return true
+    elsif either_one_busted?
+      return true
+    end
+    false
+  end
+
   def inc_no_of_games
     @total_games += 1
+  end
+
+  def results_part_a_comparison?
+    player_got_21? || busted? || dealer_got_21?
+  end
+
+  def results_part_b_comparison?
+    player_win? || dealer_win? || tie?
   end
 
   def determine_result
     inc_no_of_games
     @inc_score = true
-    player_got_21? || busted? || dealer_got_21? || player_win? || dealer_win? || tie?
+    results_part_a_comparison? || results_part_b_comparison?
     @inc_score = false
   end
 
