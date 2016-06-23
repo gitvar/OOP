@@ -184,17 +184,6 @@ class TwentyOne
     setup_new_game
   end
 
-  def setup_new_game
-    @winner = nil
-    if @number_of_games >= 1
-      deck = Deck.new
-      player.deck = deck
-      dealer.deck = deck
-      player.cards = []
-      dealer.cards = []
-    end
-  end
-
   def start
     loop do
       display_game_heading
@@ -211,6 +200,17 @@ class TwentyOne
   end
 
   private
+
+  def setup_new_game
+    @winner = nil
+    if @number_of_games >= 1
+      deck = Deck.new
+      player.deck = deck
+      dealer.deck = deck
+      player.cards = []
+      dealer.cards = []
+    end
+  end
 
   def player_turn
     loop do
