@@ -13,13 +13,15 @@ class Deck
     @deck = shuffled_deck
   end
 
+  def deal_card
+    @deck.pop
+  end
+
+  private
+
   def shuffled_deck
     new_deck = CARD_VALUES.product(CARD_SUITS)
     new_deck.map! { |card| Card.new(card[0], card[1]) }.shuffle
-  end
-
-  def deal_card
-    @deck.pop
   end
 end
 
@@ -35,43 +37,22 @@ end
 class Hand
   include Constants
 
-  attr_accessor :name, :points, :cards, :games_won, :deck
+  attr_accessor :name, :deck, :cards, :games_won
 
   def initialize(deck, name)
-    @cards = []
     @name = name
     @deck = deck
-    @points = 0
+    @cards = []
     @games_won = 0
   end
 
-  def change_aces
-    @cards.each do |card|
-      card.value = "Ace_1" if card.value == "Ace"
-      break if sum_of_points <= WINNING_TOTAL
-    end
-  end
-
-  def value_of(card)
-    return card.value.to_i if (1..10).cover?(card.value.to_i)
-    return 11 if card.value == 'Ace'
-    return 1 if card.value == 'Ace_1'
-    10
-  end
-
-  def sum_of_points
-    @points = 0
-    @cards.each { |card| @points += value_of(card) }
-    @points
-  end
-
   def total
-    change_aces if sum_of_points > WINNING_TOTAL
-    @points
+    change_aces if new_total > WINNING_TOTAL
+    new_total
   end
 
   def hit
-    @cards << @deck.deal_card
+    cards << deck.deal_card
     total
   end
 
@@ -81,14 +62,6 @@ class Hand
 
   def got_21?
     total == WINNING_TOTAL
-  end
-
-  def format_cards_for_display
-    @cards.map do |card|
-      card_value = card.value
-      card_value = "Ace" if card.value == "Ace_1"
-      "#{card_value} of #{card.suit}"
-    end
   end
 
   def show_cards
@@ -102,10 +75,38 @@ class Hand
     puts
     puts
   end
+
+  private
+
+  def new_total
+    cards.map { |card| value_of(card) }.reduce(:+)
+  end
+
+  def value_of(card)
+    return card.value.to_i if (1..10).cover?(card.value.to_i)
+    return 11 if card.value == 'Ace'
+    return 1 if card.value == 'Ace_1'
+    10
+  end
+
+  def format_cards_for_display
+    cards.map do |card|
+      card_value = card.value
+      card_value = "Ace" if card.value == "Ace_1"
+      "#{card_value} of #{card.suit}"
+    end
+  end
+
+  def change_aces
+    cards.each do |card|
+      card.value = "Ace_1" if card.value == "Ace"
+      break if new_total <= WINNING_TOTAL
+    end
+  end
 end
 
 class Human < Hand
-  def stay
+  def stay?
     answer = nil
 
     loop do
@@ -119,8 +120,7 @@ class Human < Hand
   end
 end
 
-class Dealer < Hand
-end
+class Dealer < Hand; end
 
 module Display
   def clear_screen
@@ -130,7 +130,6 @@ module Display
   def display_welcome_message
     clear_screen
     puts
-    puts
     puts "Welcome to 'Twenty-One', the game."
     puts
   end
@@ -138,23 +137,22 @@ module Display
   def display_game_heading
     clear_screen
     puts
-    puts
     puts " Twenty-One "
     puts "============"
   end
 
-  def display_game_info
+  def display_game_numbers_info
     puts
-    puts "Total games played: #{@total_games}"
+    puts "Games played so far: #{@number_of_games}"
     puts "Games won by #{player.name}: #{player.games_won}"
     puts "Games won by the Dealer: #{dealer.games_won}"
-    puts "Total games tied: #{@total_tied}"
+    puts "Games tied so far: #{@number_of_tied_games}"
     puts
   end
 
   def display_player_hand
     display_game_heading
-    display_game_info
+    display_game_numbers_info
     player.show_cards
   end
 
@@ -180,29 +178,27 @@ class TwentyOne
     @deck = Deck.new
     @player = Human.new(@deck, @human_name)
     @dealer = Dealer.new(@deck, "Dealer")
-    @total_games = 0
-    @total_tied = 0
-    @inc_score = false
+    @number_of_games = 0
+    @number_of_tied_games = 0
+    @increment_score = false
     setup_new_game
   end
 
   def setup_new_game
     @winner = nil
-    if @total_games >= 1
-      @deck = Deck.new
-      @player.deck = @deck
-      @dealer.deck = @deck
-      @player.points = 0
-      @dealer.points = 0
-      @player.cards = []
-      @dealer.cards = []
+    if @number_of_games >= 1
+      deck = Deck.new
+      player.deck = deck
+      dealer.deck = deck
+      player.cards = []
+      dealer.cards = []
     end
   end
 
   def start
     loop do
       display_game_heading
-      display_game_info
+      display_game_numbers_info
       deal_initial_cards
       player.show_cards
       player_turn
@@ -214,9 +210,11 @@ class TwentyOne
     display_goodbye_message
   end
 
+  private
+
   def player_turn
     loop do
-      break if player.got_21? || player.busted? || player.stay
+      break if player.got_21? || player.busted? || player.stay?
       player.hit
       display_player_hand
     end
@@ -229,27 +227,14 @@ class TwentyOne
     end
   end
 
-  def play_again?
-    answer = nil
-    puts
-
-    loop do
-      puts "Do you want to play another game? (Y)es or (N)o?"
-      answer = gets.chomp.downcase
-      break if %w(y n).include?(answer)
-      puts "Sorry, that is not a valid answer! Please try again."
-    end
-    answer == 'y'
-  end
-
   def update_scores(winner = nil)
-    return if @inc_score == false
+    return unless @increment_score
     if winner == :player
       player.games_won += 1
     elsif winner == :dealer
       dealer.games_won += 1
     else
-      @total_tied += 1
+      @number_of_tied_games += 1
     end
   end
 
@@ -325,23 +310,23 @@ class TwentyOne
     false
   end
 
-  def inc_no_of_games
-    @total_games += 1
+  def increment_number_of_games
+    @number_of_games += 1
   end
 
-  def results_part_a_comparison?
+  def results_part_1_comparison?
     player_got_21? || busted? || dealer_got_21?
   end
 
-  def results_part_b_comparison?
+  def results_part_2_comparison?
     player_win? || dealer_win? || tie?
   end
 
   def determine_result
-    inc_no_of_games
-    @inc_score = true
-    results_part_a_comparison? || results_part_b_comparison?
-    @inc_score = false
+    increment_number_of_games
+    @increment_score = true
+    results_part_1_comparison? || results_part_2_comparison?
+    @increment_score = false
   end
 
   def deal_initial_cards
@@ -367,6 +352,19 @@ class TwentyOne
       puts "Sorry, that is not a valid name! Please try again."
     end
     human_name
+  end
+
+  def play_again?
+    answer = nil
+    puts
+
+    loop do
+      puts "Do you want to play another game? (Y)es or (N)o?"
+      answer = gets.chomp.downcase
+      break if %w(y n).include?(answer)
+      puts "Sorry, that is not a valid answer! Please try again."
+    end
+    answer == 'y'
   end
 end
 
