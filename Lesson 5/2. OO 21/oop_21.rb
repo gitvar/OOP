@@ -171,7 +171,7 @@ class TwentyOne
       player.show_cards
       player_turn
       dealer_turn
-      busted? || player_win? || dealer_win? || tie?
+      determine_result
       break unless play_again?
       reset_game
     end
@@ -181,8 +181,7 @@ class TwentyOne
 
   def player_turn
     loop do
-      break if player.got_21? || player.busted?
-      break if player.stay
+      break if player.got_21? || player.busted? || player.stay
       player.hit
       display_player_hand
     end
@@ -190,8 +189,7 @@ class TwentyOne
 
   def dealer_turn
     loop do
-      break if busted? || dealer.got_21?
-      break if dealer.total >= DEALER_MAX
+      break if busted? || dealer.got_21? || dealer.total >= DEALER_MAX
       dealer.hit
     end
   end
@@ -215,28 +213,31 @@ class TwentyOne
     @dealer = Dealer.new(@deck, "Dealer")
   end
 
+  def player_got_21?
+    return false unless player.got_21?
+    display_player_hand
+    puts "YOU GOT 21, YOU WIN!"
+    true
+  end
+
+  def dealer_got_21?
+    return false unless dealer.got_21?
+    display_both_hands
+    puts "DEALER GOT 21, AND WINS!"
+    true
+  end
+
   def player_win?
-    return false unless player.got_21? || dealer.total < player.total
-    if player.got_21?
-      display_player_hand
-      puts "YOU GOT 21, YOU WIN!"
-    else
-      display_both_hands
-      puts "YOU WIN!"
-    end
+    return false unless player.total > dealer.total
+    display_both_hands
+    puts "YOU WIN!"
     true
   end
 
   def dealer_win?
-    dealer_total = dealer.total
-    player_total = player.total
-    return false unless dealer.got_21? || dealer_total > player_total
+    return false unless dealer.total > player.total
     display_both_hands
-    if dealer.got_21?
-      puts "DEALER GOT 21, AND WINS!"
-    elsif dealer_total > player_total
-      puts "DEALER WINS!"
-    end
+    puts "DEALER WINS!"
     true
   end
 
@@ -247,8 +248,14 @@ class TwentyOne
     true
   end
 
+  def determine_result
+    return if player_got_21?
+    return if busted? || dealer_got_21?
+    return if player_win? || dealer_win?
+    tie?
+  end
+
   def busted?
-    return false if player.got_21? || dealer.got_21?
     if player.busted?
       display_player_hand
       puts
