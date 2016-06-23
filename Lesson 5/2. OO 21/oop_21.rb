@@ -35,13 +35,14 @@ end
 class Hand
   include Constants
 
-  attr_accessor :name
+  attr_accessor :name, :points, :cards, :games_won, :deck
 
   def initialize(deck, name)
     @cards = []
     @name = name
     @deck = deck
     @points = 0
+    @games_won = 0
   end
 
   def change_aces
@@ -138,12 +139,22 @@ module Display
     clear_screen
     puts
     puts
-    puts " TwentyOne "
-    puts "==========="
+    puts " Twenty-One "
+    puts "============"
+  end
+
+  def display_game_info
+    puts
+    puts "Total games played: #{@total_games}"
+    puts "Games won by #{player.name}: #{player.games_won}"
+    puts "Games won by the Dealer: #{dealer.games_won}"
+    puts "Total games tied: #{@total_tied}"
+    puts
   end
 
   def display_player_hand
     display_game_heading
+    display_game_info
     player.show_cards
   end
 
@@ -161,19 +172,39 @@ class TwentyOne
 
   def initialize
     @human_name = name
-    reset_game
+    @deck = Deck.new
+    @player = Human.new(@deck, @human_name)
+    @dealer = Dealer.new(@deck, "Dealer")
+    @total_games = 0
+    @total_tied = 0
+    @inc_score = false
+    setup_new_game
+  end
+
+  def setup_new_game
+    @winner = nil
+    if @total_games >= 1
+      @deck = Deck.new
+      @player.deck = @deck
+      @dealer.deck = @deck
+      @player.points = 0
+      @dealer.points = 0
+      @player.cards = []
+      @dealer.cards = []
+    end
   end
 
   def start
     loop do
       display_game_heading
+      display_game_info
       deal_initial_cards
       player.show_cards
       player_turn
       dealer_turn
       determine_result
       break unless play_again?
-      reset_game
+      setup_new_game
     end
     puts
     puts "Thanks for playing 'Twenty-One'! Goodbye."
@@ -207,67 +238,91 @@ class TwentyOne
     answer == 'y'
   end
 
-  def reset_game
-    @deck = Deck.new
-    @player = Human.new(@deck, @human_name)
-    @dealer = Dealer.new(@deck, "Dealer")
+  def update_scores(winner = nil)
+    return if @inc_score == false
+    if winner == :player
+      player.games_won += 1
+    elsif winner == :dealer
+      dealer.games_won += 1
+    else
+      @total_tied += 1
+    end
+  end
+
+  def display_result(winner = nil, message = nil)
+    message = "#{player.name.upcase}, " + message if winner == :player
+    puts message
   end
 
   def player_got_21?
     return false unless player.got_21?
+    update_scores(:player)
     display_player_hand
-    puts "YOU GOT 21, YOU WIN!"
+    display_result(:player, "YOU GOT 21, YOU ARE THE WINNER!")
     true
   end
 
   def dealer_got_21?
     return false unless dealer.got_21?
+    update_scores(:dealer)
     display_both_hands
-    puts "DEALER GOT 21, AND WINS!"
+    display_result(:dealer, "DEALER GOT 21, AND WINS!")
     true
   end
 
   def player_win?
     return false unless player.total > dealer.total
+    update_scores(:player)
     display_both_hands
-    puts "YOU WIN!"
+    display_result(:player, "YOU WIN!")
     true
   end
 
   def dealer_win?
     return false unless dealer.total > player.total
+    update_scores(:dealer)
     display_both_hands
-    puts "DEALER WINS!"
+    display_result(:dealer, "DEALER WINS!")
     true
   end
 
   def tie?
     return false unless dealer.total == player.total
+    update_scores
     display_both_hands
-    puts "IT'S A TIE!"
+    display_result(nil, "IT'S A TIE!")
     true
   end
 
-  def determine_result
-    return if player_got_21?
-    return if busted? || dealer_got_21?
-    return if player_win? || dealer_win?
-    tie?
-  end
-
   def busted?
-    if player.busted?
+    if player.busted? && dealer.busted?
+      update_scores
+      display_both_hands
+      display_result(nil, "SORRY, YOU BOTH WENT BUST!")
+      return true
+    elsif player.busted?
+      update_scores(:dealer)
       display_player_hand
-      puts
-      puts "YOU WENT BUST, DEALER WINS!"
+      display_result(:dealer, "YOU WENT BUST, THE DEALER WINS!")
       return true
     elsif dealer.busted?
+      update_scores(:player)
       display_both_hands
-      puts
-      puts "DEALER WENT BUST, YOU WIN!"
+      display_result(:player, "THE DEALER WENT BUST, YOU WIN!")
       return true
     end
     false
+  end
+
+  def inc_no_of_games
+    @total_games += 1
+  end
+
+  def determine_result
+    inc_no_of_games
+    @inc_score = true
+    player_got_21? || busted? || dealer_got_21? || player_win? || dealer_win? || tie?
+    @inc_score = false
   end
 
   def deal_initial_cards
