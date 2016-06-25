@@ -34,7 +34,7 @@ class Card
   end
 end
 
-class Hand
+class Contestant
   include Constants
 
   attr_accessor :name, :deck, :cards, :games_won
@@ -64,19 +64,29 @@ class Hand
     total == WINNING_TOTAL
   end
 
-  def show_cards
+  def show_cards(show_full_or_partial_dealer_hand = :full)
     heading = "#{name}'s cards:"
     puts heading
     heading.size.times { |_| print "=" }
     puts
-    puts format_cards_for_display
-    puts
-    puts "#{name}'s total is: #{total}"
+    if show_full_or_partial_dealer_hand == :partial
+      show_first_card_only
+    else
+      puts format_cards_for_display
+      puts
+      puts "#{name}'s total is: #{total}"
+    end
     puts
     puts
   end
 
   private
+
+  def show_first_card_only
+    puts format_first_card
+    puts
+    puts "#{name}'s total is: #{value_of(cards[0])}"
+  end
 
   def new_total
     cards.map { |card| value_of(card) }.reduce(:+)
@@ -87,6 +97,12 @@ class Hand
     return 11 if card.value == 'Ace'
     return 1 if card.value == 'Ace_1'
     10
+  end
+
+  def format_first_card
+    card_value = cards[0].value
+    card_value = "Ace" if cards[0].value == "Ace_1"
+    "#{card_value} of #{cards[0].suit}"
   end
 
   def format_cards_for_display
@@ -105,7 +121,7 @@ class Hand
   end
 end
 
-class Human < Hand
+class Human < Contestant
   def stay?
     answer = nil
 
@@ -120,7 +136,7 @@ class Human < Hand
   end
 end
 
-class Dealer < Hand; end
+class Dealer < Contestant; end
 
 module Display
   def clear_screen
@@ -156,9 +172,9 @@ module Display
     player.show_cards
   end
 
-  def display_both_hands
+  def display_both_hands(full_or_partial_dealer_hand)
     display_player_hand
-    dealer.show_cards
+    dealer.show_cards(full_or_partial_dealer_hand)
   end
 
   def display_goodbye_message
@@ -171,6 +187,9 @@ class TwentyOne
   include Display
   include Constants
 
+  FULL_DEALER_HAND = :full
+  PARTIAL_DEALER_HAND = :partial
+
   attr_accessor :deck, :player, :dealer
 
   def initialize
@@ -180,7 +199,6 @@ class TwentyOne
     @dealer = Dealer.new(@deck, "Dealer")
     @number_of_games = 0
     @number_of_tied_games = 0
-    @increment_score = false
     setup_new_game
   end
 
@@ -189,7 +207,7 @@ class TwentyOne
       display_game_heading
       display_game_numbers_info
       deal_initial_cards
-      player.show_cards
+      display_both_hands(PARTIAL_DEALER_HAND)
       player_turn
       dealer_turn
       determine_result
@@ -216,19 +234,19 @@ class TwentyOne
     loop do
       break if player.got_21? || player.busted? || player.stay?
       player.hit
-      display_player_hand
+      display_both_hands(PARTIAL_DEALER_HAND)
     end
   end
 
   def dealer_turn
     loop do
-      break if busted? || dealer.got_21? || dealer.total >= DEALER_MAX
+      break if dealer.busted? || dealer.got_21? || dealer.total >= DEALER_MAX
       dealer.hit
     end
   end
 
-  def update_scores(winner = nil)
-    return unless @increment_score
+  def update_number_of_games_won(increment_games_won = false, winner = nil)
+    return unless increment_games_won
     if winner == :player
       player.games_won += 1
     elsif winner == :dealer
@@ -243,69 +261,98 @@ class TwentyOne
     puts message
   end
 
-  def player_got_21?
-    return false unless player.got_21?
-    update_scores(:player)
-    display_player_hand
-    display_result(:player, "YOU GOT 21, YOU ARE THE WINNER!")
+  # def player_got_21?(inc_wins)
+  #   return false unless player.got_21?
+  #   update_number_of_games_won(inc_wins, :player)
+  #   display_both_hands(PARTIAL_DEALER_HAND)
+  #   display_result(:player, "YOU GOT 21, YOU ARE THE WINNER!")
+  #   true
+  # end
+  #
+  # def dealer_got_21?(inc_wins)
+  #   return false unless dealer.got_21?
+  #   update_number_of_games_won(inc_wins, :dealer)
+  #   display_both_hands(FULL_DEALER_HAND)
+  #   display_result(:dealer, "DEALER GOT 21, AND WINS!")
+  #   true
+  # end
+
+  # def busted?(inc_wins = false)
+  #   if player.busted?
+  #     update_number_of_games_won(inc_wins, :dealer)
+  #     display_both_hands(PARTIAL_DEALER_HAND)
+  #     display_result(:dealer, "YOU WENT BUST, THE DEALER WINS!")
+  #     true
+  #   elsif dealer.busted?
+  #     update_number_of_games_won(inc_wins, :player)
+  #     display_both_hands(FULL_DEALER_HAND)
+  #     display_result(:player, "THE DEALER WENT BUST, YOU WIN!")
+  #     true
+  #   else
+  #     false
+  #   end
+  # end
+
+  def update_and_display(participant, inc_wins, part_of_dealer_hand, message)
+    update_number_of_games_won(inc_wins, participant)
+    display_both_hands(part_of_dealer_hand)
+    display_result(participant, message)
     true
   end
 
-  def dealer_got_21?
-    return false unless dealer.got_21?
-    update_scores(:dealer)
-    display_both_hands
-    display_result(:dealer, "DEALER GOT 21, AND WINS!")
-    true
-  end
-
-  def player_win?
-    return false unless player.total > dealer.total
-    update_scores(:player)
-    display_both_hands
-    display_result(:player, "YOU WIN!")
-    true
-  end
-
-  def dealer_win?
-    return false unless dealer.total > player.total
-    update_scores(:dealer)
-    display_both_hands
-    display_result(:dealer, "DEALER WINS!")
-    true
-  end
-
-  def tie?
-    return false unless dealer.total == player.total
-    update_scores
-    display_both_hands
-    display_result(nil, "IT'S A TIE!")
-    true
-  end
-
-  def either_one_busted?
-    if player.busted?
-      update_scores(:dealer)
-      display_player_hand
-      display_result(:dealer, "YOU WENT BUST, THE DEALER WINS!")
-      return true
-    elsif dealer.busted?
-      update_scores(:player)
-      display_both_hands
-      display_result(:player, "THE DEALER WENT BUST, YOU WIN!")
-      return true
+  def results_part_1(inc_wins = false)
+    case
+    when player.got_21?
+      message = "YOU GOT 21, YOU ARE THE WINNER!"
+      return update_and_display(:player, inc_wins, PARTIAL_DEALER_HAND, message)
+    when player.busted?
+      message = "YOU WENT BUST, THE DEALER WINS!"
+      return update_and_display(:dealer, inc_wins, PARTIAL_DEALER_HAND, message)
+    when dealer.busted?
+      message = "THE DEALER WENT BUST, YOU WIN!"
+      return update_and_display(:player, inc_wins, FULL_DEALER_HAND, message)
+    when dealer.got_21?
+      message = "DEALER GOT 21, AND WINS!"
+      return update_and_display(:player, inc_wins, FULL_DEALER_HAND, message)
     end
     false
   end
 
-  def busted?
-    if player.busted? && dealer.busted?
-      update_scores
-      display_both_hands
-      display_result(nil, "SORRY, YOU BOTH WENT BUST!")
-      return true
-    elsif either_one_busted?
-      return true
+  # def player_win?(inc_wins)
+  #   return false unless player.total > dealer.total
+  #   update_number_of_games_won(inc_wins, :player)
+  #   display_both_hands(FULL_DEALER_HAND)
+  #   display_result(:player, "YOU WIN!")
+  #   true
+  # end
+  #
+  # def dealer_win?(inc_wins)
+  #   return false unless dealer.total > player.total
+  #   update_number_of_games_won(inc_wins, :dealer)
+  #   display_both_hands(FULL_DEALER_HAND)
+  #   display_result(:dealer, "DEALER WINS!")
+  #   true
+  # end
+  #
+  # def tie?(inc_wins)
+  #   return false unless dealer.total == player.total
+  #   update_number_of_games_won(inc_wins, nil)
+  #   display_both_hands(FULL_DEALER_HAND)
+  #   display_result(nil, "IT'S A TIE!")
+  #   true
+  # end
+
+  def results_part_2(inc_wins = false)
+    case
+    when player.total > dealer.total
+      message = "YOU WIN!"
+      return update_and_display(:player, inc_wins, FULL_DEALER_HAND, message)
+    when dealer.total > player.total
+      message = "DEALER WINS!"
+      return update_and_display(:dealer, inc_wins, FULL_DEALER_HAND, message)
+    when dealer.total == player.total
+      message = "IT'S A TIE!"
+      return update_and_display(:nil, inc_wins, FULL_DEALER_HAND, message)
     end
     false
   end
@@ -313,20 +360,20 @@ class TwentyOne
   def increment_number_of_games
     @number_of_games += 1
   end
-
-  def results_part_1_comparison?
-    player_got_21? || busted? || dealer_got_21?
-  end
-
-  def results_part_2_comparison?
-    player_win? || dealer_win? || tie?
-  end
+  #
+  # def results_part_1_comparison?(inc_wins = false)
+  #   player_got_21?(inc_wins) || busted?(inc_wins) || dealer_got_21?(inc_wins)
+  # end
+  #
+  # def results_part_2_comparison?(inc_wins = false)
+  #   player_win?(inc_wins) || dealer_win?(inc_wins) || tie?(inc_wins)
+  # end
 
   def determine_result
     increment_number_of_games
-    @increment_score = true
-    results_part_1_comparison? || results_part_2_comparison?
-    @increment_score = false
+    inc_wins = true
+    # results_part_1_comparison?(inc_wins) || results_part_2_comparison?(inc_wins)
+    results_part_1(inc_wins) || results_part_2(inc_wins)
   end
 
   def deal_initial_cards
