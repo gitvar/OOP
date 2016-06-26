@@ -3,7 +3,7 @@ module Constants
   WINNING_TOTAL = 21
   DEALER_MAX = 17
   CARD_SUITS = %w(Hearts Diamonds Spades Clubs).freeze
-  CARD_VALUES = %w(1 2 3 4 5 6 7 8 9 10 Jack Queen King Ace).freeze
+  CARD_FACES = %w(1 2 3 4 5 6 7 8 9 10 Jack Queen King Ace).freeze
 end
 
 class Deck
@@ -20,17 +20,30 @@ class Deck
   private
 
   def shuffled_deck
-    new_deck = CARD_VALUES.product(CARD_SUITS)
-    new_deck.map! { |card| Card.new(card[0], card[1]) }.shuffle
+    new_deck = CARD_SUITS.product(CARD_FACES)
+    new_deck.map! { |card| Card.new(card[0], card[1]) }.shuffle!
+    new_deck.shuffle!
   end
 end
 
 class Card
-  attr_accessor :value, :suit
+  attr_accessor :suit, :face, :value
 
-  def initialize(value, suit)
-    @value = value
+  def initialize(suit, face)
+    @face = face
     @suit = suit
+    @value = 0
+    add_value_to_card
+  end
+
+  def add_value_to_card
+    @value = if (1..10).cover?(@face.to_i)
+               @face.to_i
+             elsif @face == "Ace"
+               11
+             else
+               10
+             end
   end
 end
 
@@ -46,11 +59,6 @@ class Contestant
     @games_won = 0
   end
 
-  def total
-    change_aces if new_total > WINNING_TOTAL
-    new_total
-  end
-
   def hit
     cards << deck.deal_card
     total
@@ -64,12 +72,22 @@ class Contestant
     total == WINNING_TOTAL
   end
 
-  def show_cards(show_full_or_partial_dealer_hand = :full)
+  def total
+    if sum > WINNING_TOTAL
+      cards.each do |card|
+        card.value = 1 if card.face == 'Ace'
+        break if sum <= WINNING_TOTAL
+      end
+    end
+    sum
+  end
+
+  def show_cards(full_or_partial = :full)
     heading = "#{name}'s cards:"
     puts heading
     heading.size.times { |_| print "=" }
     puts
-    if show_full_or_partial_dealer_hand == :partial
+    if full_or_partial == :partial
       show_first_card_only
     else
       puts format_cards_for_display
@@ -82,41 +100,23 @@ class Contestant
 
   private
 
+  def sum
+    cards.map(&:value).reduce(:+)
+  end
+
   def show_first_card_only
     puts format_first_card
     puts
-    puts "#{name}'s total is: #{value_of(cards[0])}"
-  end
-
-  def new_total
-    cards.map { |card| value_of(card) }.reduce(:+)
-  end
-
-  def value_of(card)
-    return card.value.to_i if (1..10).cover?(card.value.to_i)
-    return 11 if card.value == 'Ace'
-    return 1 if card.value == 'Ace_1'
-    10
+    puts "#{name}'s total is: #{cards[0].value}"
   end
 
   def format_first_card
-    card_value = cards[0].value
-    card_value = "Ace" if cards[0].value == "Ace_1"
-    "#{card_value} of #{cards[0].suit}"
+    "#{cards[0].face} of #{cards[0].suit}"
   end
 
   def format_cards_for_display
     cards.map do |card|
-      card_value = card.value
-      card_value = "Ace" if card.value == "Ace_1"
-      "#{card_value} of #{card.suit}"
-    end
-  end
-
-  def change_aces
-    cards.each do |card|
-      card.value = "Ace_1" if card.value == "Ace"
-      break if new_total <= WINNING_TOTAL
+      "#{card.face} of #{card.suit}"
     end
   end
 end
@@ -172,9 +172,9 @@ module Display
     player.show_cards
   end
 
-  def display_both_hands(full_or_partial_dealer_hand)
+  def display_both_hands(full_or_partial)
     display_player_hand
-    dealer.show_cards(full_or_partial_dealer_hand)
+    dealer.show_cards(full_or_partial)
   end
 
   def display_goodbye_message
@@ -187,8 +187,8 @@ class TwentyOne
   include Display
   include Constants
 
-  FULL_DEALER_HAND = :full
-  PARTIAL_DEALER_HAND = :partial
+  FULL_HAND = :full
+  PARTIAL_HAND = :partial
 
   attr_accessor :deck, :player, :dealer
 
@@ -199,7 +199,7 @@ class TwentyOne
     @dealer = Dealer.new(@deck, "Dealer")
     @number_of_games = 0
     @number_of_tied_games = 0
-    setup_new_game
+    prepare_for_new_game
   end
 
   def start
@@ -207,19 +207,19 @@ class TwentyOne
       display_game_heading
       display_game_numbers_info
       deal_initial_cards
-      display_both_hands(PARTIAL_DEALER_HAND)
+      display_both_hands(PARTIAL_HAND)
       player_turn
       dealer_turn
       determine_result
       break unless play_again?
-      setup_new_game
+      prepare_for_new_game
     end
     display_goodbye_message
   end
 
   private
 
-  def setup_new_game
+  def prepare_for_new_game
     @winner = nil
     if @number_of_games >= 1
       deck = Deck.new
@@ -234,7 +234,7 @@ class TwentyOne
     loop do
       break if player.got_21? || player.busted? || player.stay?
       player.hit
-      display_both_hands(PARTIAL_DEALER_HAND)
+      display_both_hands(PARTIAL_HAND)
     end
   end
 
@@ -260,9 +260,9 @@ class TwentyOne
     puts message
   end
 
-  def update_and_display(winner, part_of_dealer_hand, message)
+  def update_and_display(winner, full_or_partial, message)
     update_number_of_games_won(winner)
-    display_both_hands(part_of_dealer_hand)
+    display_both_hands(full_or_partial)
     display_result(message, winner)
     true
   end
@@ -270,16 +270,16 @@ class TwentyOne
   def results_part_1
     if player.got_21?
       message = "YOU GOT 21, YOU ARE THE WINNER!"
-      return update_and_display(:player, PARTIAL_DEALER_HAND, message)
+      return update_and_display(:player, PARTIAL_HAND, message)
     elsif player.busted?
       message = "YOU WENT BUST, THE DEALER WINS!"
-      return update_and_display(:dealer, PARTIAL_DEALER_HAND, message)
+      return update_and_display(:dealer, PARTIAL_HAND, message)
     elsif dealer.busted?
       message = "THE DEALER WENT BUST, YOU WIN!"
-      return update_and_display(:player, FULL_DEALER_HAND, message)
+      return update_and_display(:player, FULL_HAND, message)
     elsif dealer.got_21?
       message = "DEALER GOT 21, AND WINS!"
-      return update_and_display(:player, FULL_DEALER_HAND, message)
+      return update_and_display(:player, FULL_HAND, message)
     end
     false
   end
@@ -289,13 +289,13 @@ class TwentyOne
     dealer_total = dealer.total
     if player_total > dealer_total
       message = "YOU WIN!"
-      return update_and_display(:player, FULL_DEALER_HAND, message)
+      return update_and_display(:player, FULL_HAND, message)
     elsif dealer_total > player_total
       message = "DEALER WINS!"
-      return update_and_display(:dealer, FULL_DEALER_HAND, message)
+      return update_and_display(:dealer, FULL_HAND, message)
     elsif dealer_total == player_total
       message = "IT'S A TIE!"
-      return update_and_display(:nil, FULL_DEALER_HAND, message)
+      return update_and_display(:nil, FULL_HAND, message)
     end
     false
   end
