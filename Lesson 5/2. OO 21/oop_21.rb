@@ -1,13 +1,7 @@
 # frozen_string_literal: false
-module Constants
-  WINNING_TOTAL = 21
-  DEALER_MAX = 17
+class Deck
   CARD_SUITS = %w(Hearts Diamonds Spades Clubs).freeze
   CARD_FACES = %w(1 2 3 4 5 6 7 8 9 10 Jack Queen King Ace).freeze
-end
-
-class Deck
-  include Constants
 
   def initialize
     @deck = shuffled_deck
@@ -22,7 +16,7 @@ class Deck
   def shuffled_deck
     new_deck = CARD_SUITS.product(CARD_FACES)
     new_deck.map! { |card| Card.new(card[0], card[1]) }.shuffle!
-    new_deck.shuffle!
+    new_deck.shuffle!.shuffle!
   end
 end
 
@@ -32,36 +26,25 @@ class Card
   def initialize(suit, face)
     @face = face
     @suit = suit
-    @value = 0
-    add_value_to_card
+    @value = insert_value
   end
 
-  def add_value_to_card
-    @value = if (1..10).cover?(@face.to_i)
-               @face.to_i
-             elsif @face == "Ace"
-               11
-             else
-               10
-             end
+  def insert_value
+    if (1..10).cover?(@face.to_i)
+      @face.to_i
+    elsif @face == "Ace"
+      11
+    else
+      10
+    end
   end
 end
 
-class Contestant
-  include Constants
+module Hand
+  WINNING_TOTAL = 21
 
-  attr_accessor :name, :deck, :cards, :games_won
-
-  def initialize(deck, name)
-    @name = name
-    @deck = deck
-    @cards = []
-    @games_won = 0
-  end
-
-  def hit
-    cards << deck.deal_card
-    total
+  def hit(card)
+    cards << card
   end
 
   def busted?
@@ -82,10 +65,9 @@ class Contestant
     sum
   end
 
-  def show_cards(full_or_partial = :full)
-    heading = "#{name}'s cards:"
-    puts heading
-    heading.size.times { |_| print "=" }
+  def show_hand(full_or_partial = :full)
+    puts "#{name}'s hand:"
+    "#{name}'s hand:".size.times { print "=" }
     puts
     if full_or_partial == :partial
       show_first_card_only
@@ -96,6 +78,30 @@ class Contestant
     end
     puts
     puts
+  end
+end
+
+class Contestant
+  include Hand
+
+  attr_accessor :name, :cards, :games_won
+
+  def initialize(name)
+    @name = name
+    @cards = []
+    @games_won = 0
+  end
+
+  def stay?
+    answer = nil
+    loop do
+      puts
+      puts "(H)it or (S)tay?"
+      answer = gets.chomp.downcase
+      break if %w(h s).include?(answer)
+      puts "Sorry, that is not a valid choice! Please try again."
+    end
+    answer == 's'
   end
 
   private
@@ -120,23 +126,6 @@ class Contestant
     end
   end
 end
-
-class Human < Contestant
-  def stay?
-    answer = nil
-
-    loop do
-      puts
-      puts "(H)it or (S)tay?"
-      answer = gets.chomp.downcase
-      break if %w(h s).include?(answer)
-      puts "Sorry, that is not a valid choice! Please try again."
-    end
-    answer == 's'
-  end
-end
-
-class Dealer < Contestant; end
 
 module Display
   def clear_screen
@@ -169,12 +158,12 @@ module Display
   def display_player_hand
     display_game_heading
     display_game_numbers_info
-    player.show_cards
+    player.show_hand
   end
 
   def display_both_hands(full_or_partial)
     display_player_hand
-    dealer.show_cards(full_or_partial)
+    dealer.show_hand(full_or_partial)
   end
 
   def display_goodbye_message
@@ -185,18 +174,16 @@ end
 
 class TwentyOne
   include Display
-  include Constants
 
-  FULL_HAND = :full
-  PARTIAL_HAND = :partial
+  DEALER_MAX = 17
 
   attr_accessor :deck, :player, :dealer
 
   def initialize
     @human_name = name
     @deck = Deck.new
-    @player = Human.new(@deck, @human_name)
-    @dealer = Dealer.new(@deck, "Dealer")
+    @player = Contestant.new(@human_name)
+    @dealer = Contestant.new("Dealer")
     @number_of_games = 0
     @number_of_tied_games = 0
     prepare_for_new_game
@@ -207,7 +194,7 @@ class TwentyOne
       display_game_heading
       display_game_numbers_info
       deal_initial_cards
-      display_both_hands(PARTIAL_HAND)
+      display_both_hands(:partial)
       player_turn
       dealer_turn
       determine_result
@@ -222,9 +209,7 @@ class TwentyOne
   def prepare_for_new_game
     @winner = nil
     if @number_of_games >= 1
-      deck = Deck.new
-      player.deck = deck
-      dealer.deck = deck
+      @deck = Deck.new
       player.cards = []
       dealer.cards = []
     end
@@ -233,15 +218,15 @@ class TwentyOne
   def player_turn
     loop do
       break if player.got_21? || player.busted? || player.stay?
-      player.hit
-      display_both_hands(PARTIAL_HAND)
+      player.hit(deck.deal_card)
+      display_both_hands(:partial)
     end
   end
 
   def dealer_turn
     loop do
       break if dealer.busted? || dealer.got_21? || dealer.total >= DEALER_MAX
-      dealer.hit
+      dealer.hit(deck.deal_card)
     end
   end
 
@@ -270,16 +255,16 @@ class TwentyOne
   def results_part_1
     if player.got_21?
       message = "YOU GOT 21, YOU ARE THE WINNER!"
-      return update_and_display(:player, PARTIAL_HAND, message)
+      return update_and_display(:player, :partial, message)
     elsif player.busted?
       message = "YOU WENT BUST, THE DEALER WINS!"
-      return update_and_display(:dealer, PARTIAL_HAND, message)
+      return update_and_display(:dealer, :partial, message)
     elsif dealer.busted?
       message = "THE DEALER WENT BUST, YOU WIN!"
-      return update_and_display(:player, FULL_HAND, message)
+      return update_and_display(:player, :full, message)
     elsif dealer.got_21?
       message = "DEALER GOT 21, AND WINS!"
-      return update_and_display(:player, FULL_HAND, message)
+      return update_and_display(:dealer, :full, message)
     end
     false
   end
@@ -289,19 +274,15 @@ class TwentyOne
     dealer_total = dealer.total
     if player_total > dealer_total
       message = "YOU WIN!"
-      return update_and_display(:player, FULL_HAND, message)
+      return update_and_display(:player, :full, message)
     elsif dealer_total > player_total
       message = "DEALER WINS!"
-      return update_and_display(:dealer, FULL_HAND, message)
+      return update_and_display(:dealer, :full, message)
     elsif dealer_total == player_total
       message = "IT'S A TIE!"
-      return update_and_display(:nil, FULL_HAND, message)
+      return update_and_display(:nil, :full, message)
     end
     false
-  end
-
-  def increment_number_of_games
-    @number_of_games += 1
   end
 
   def determine_result
@@ -309,10 +290,14 @@ class TwentyOne
     results_part_1 || results_part_2
   end
 
+  def increment_number_of_games
+    @number_of_games += 1
+  end
+
   def deal_initial_cards
     2.times do
-      player.hit
-      dealer.hit
+      player.hit(deck.deal_card)
+      dealer.hit(deck.deal_card)
     end
   end
 
