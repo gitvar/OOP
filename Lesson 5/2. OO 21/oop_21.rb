@@ -4,7 +4,7 @@ class Deck
   CARD_FACES = %w(1 2 3 4 5 6 7 8 9 10 Jack Queen King Ace).freeze
 
   def initialize
-    @deck = shuffled_deck
+    @deck = new_shuffled_deck
   end
 
   def deal_card
@@ -13,7 +13,7 @@ class Deck
 
   private
 
-  def shuffled_deck
+  def new_shuffled_deck
     new_deck = CARD_SUITS.product(CARD_FACES)
     new_deck.map! { |card| Card.new(card[0], card[1]) }.shuffle!
     new_deck.shuffle!.shuffle!
@@ -44,7 +44,7 @@ module Hand
   WINNING_TOTAL = 21
 
   def hit(card)
-    cards << card
+    hand << card
   end
 
   def busted?
@@ -57,7 +57,7 @@ module Hand
 
   def total
     if sum > WINNING_TOTAL
-      cards.each do |card|
+      hand.each do |card|
         card.value = 1 if card.face == 'Ace'
         break if sum <= WINNING_TOTAL
       end
@@ -66,29 +66,61 @@ module Hand
   end
 
   def show_hand(full_or_partial = :full)
+    display_hand_heading
+    if full_or_partial == :full
+      show_all_cards
+    else
+      show_first_card
+    end
+  end
+
+  private
+
+  def sum
+    hand.map(&:value).reduce(:+)
+  end
+
+  def display_hand_heading
     puts "#{name}'s hand:"
     "#{name}'s hand:".size.times { print "=" }
     puts
-    if full_or_partial == :partial
-      show_first_card_only
-    else
-      puts format_cards_for_display
-      puts
-      puts "#{name}'s total is: #{total}"
+  end
+
+  def show_all_cards
+    puts format_cards_for_display
+    puts
+    puts "#{name}'s total is: #{total}"
+    puts
+    puts
+  end
+
+  def format_cards_for_display
+    hand.map do |card|
+      "#{card.face} of #{card.suit}"
     end
+  end
+
+  def show_first_card
+    puts format_first_card
+    puts
+    puts "#{name}'s total is: #{hand[0].value}"
     puts
     puts
+  end
+
+  def format_first_card
+    "#{hand[0].face} of #{hand[0].suit}"
   end
 end
 
 class Contestant
   include Hand
 
-  attr_accessor :name, :cards, :games_won
+  attr_accessor :name, :hand, :games_won
 
   def initialize(name)
     @name = name
-    @cards = []
+    @hand = []
     @games_won = 0
   end
 
@@ -102,28 +134,6 @@ class Contestant
       puts "Sorry, that is not a valid choice! Please try again."
     end
     answer == 's'
-  end
-
-  private
-
-  def sum
-    cards.map(&:value).reduce(:+)
-  end
-
-  def show_first_card_only
-    puts format_first_card
-    puts
-    puts "#{name}'s total is: #{cards[0].value}"
-  end
-
-  def format_first_card
-    "#{cards[0].face} of #{cards[0].suit}"
-  end
-
-  def format_cards_for_display
-    cards.map do |card|
-      "#{card.face} of #{card.suit}"
-    end
   end
 end
 
@@ -176,12 +186,10 @@ class TwentyOne
   include Display
 
   DEALER_MAX = 17
-
   attr_accessor :deck, :player, :dealer
 
   def initialize
     @human_name = name
-    @deck = Deck.new
     @player = Contestant.new(@human_name)
     @dealer = Contestant.new("Dealer")
     @number_of_games = 0
@@ -208,11 +216,9 @@ class TwentyOne
 
   def prepare_for_new_game
     @winner = nil
-    if @number_of_games >= 1
-      @deck = Deck.new
-      player.cards = []
-      dealer.cards = []
-    end
+    @deck = Deck.new
+    player.hand = []
+    dealer.hand = []
   end
 
   def player_turn
@@ -301,14 +307,13 @@ class TwentyOne
     end
   end
 
-  def valid_name?(name) # Hyphenated names are also valid: "Jean-Claude".
+  def valid_name?(name)
     !!(name =~ /^[A-Z][a-zA-Z]*(-[A-Z][a-zA-Z]*)?$/)
   end
 
   def name
     display_welcome_message
     human_name = nil
-
     loop do
       puts
       puts "Please enter your name:"
@@ -322,7 +327,6 @@ class TwentyOne
   def play_again?
     answer = nil
     puts
-
     loop do
       puts "Do you want to play another game? (Y)es or (N)o?"
       answer = gets.chomp.downcase
