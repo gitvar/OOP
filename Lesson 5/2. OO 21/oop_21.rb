@@ -42,6 +42,7 @@ end
 
 module Hand
   WINNING_TOTAL = 21
+  DEALER_MAX = 17
 
   def hit(card)
     hand << card
@@ -118,10 +119,24 @@ class Contestant
 
   attr_accessor :name, :hand, :games_won
 
-  def initialize(name)
-    @name = name
+  def initialize
+    @name = obtain_name
     @hand = []
     @games_won = 0
+  end
+end
+
+class Player < Contestant
+  def obtain_name
+    name = nil
+    loop do
+      puts
+      puts "Please enter your name:"
+      name = gets.chomp
+      break if valid_name?(name)
+      puts "Sorry, that is not a valid name! Please try again."
+    end
+    name
   end
 
   def stay?
@@ -134,6 +149,22 @@ class Contestant
       puts "Sorry, that is not a valid choice! Please try again."
     end
     answer == 's'
+  end
+
+  private
+
+  def valid_name?(name)
+    !!(name =~ /^[A-Z][a-zA-Z]*(-[A-Z][a-zA-Z]*)?$/)
+  end
+end
+
+class Dealer < Contestant
+  def obtain_name
+    %w(Twiki Hal WallE T-1000 CP30).sample
+  end
+
+  def stay?
+    total >= DEALER_MAX && total <= WINNING_TOTAL
   end
 end
 
@@ -160,7 +191,7 @@ module Display
     puts
     puts "Games played so far: #{@number_of_games}"
     puts "Games won by #{player.name}: #{player.games_won}"
-    puts "Games won by the Dealer: #{dealer.games_won}"
+    puts "Games won by #{dealer.name}: #{dealer.games_won}"
     puts "Games tied so far: #{@number_of_tied_games}"
     puts
   end
@@ -185,13 +216,12 @@ end
 class TwentyOne
   include Display
 
-  DEALER_MAX = 17
   attr_accessor :deck, :player, :dealer
 
   def initialize
-    @human_name = name
-    @player = Contestant.new(@human_name)
-    @dealer = Contestant.new("Dealer")
+    display_welcome_message
+    @player = Player.new
+    @dealer = Dealer.new
     @number_of_games = 0
     @number_of_tied_games = 0
     prepare_for_new_game
@@ -231,7 +261,8 @@ class TwentyOne
 
   def dealer_turn
     loop do
-      break if dealer.busted? || dealer.got_21? || dealer.total >= DEALER_MAX
+      break if dealer.busted? || dealer.got_21? || dealer.total > player.total \
+                              || dealer.stay?
       dealer.hit(deck.deal_card)
     end
   end
@@ -259,17 +290,18 @@ class TwentyOne
   end
 
   def results_part_1
+    dealer_name = dealer.name.upcase
     if player.got_21?
       message = "YOU GOT 21, YOU ARE THE WINNER!"
       return update_and_display(:player, :partial, message)
     elsif player.busted?
-      message = "YOU WENT BUST, THE DEALER WINS!"
+      message = "YOU WENT BUST, #{dealer_name} WINS!"
       return update_and_display(:dealer, :partial, message)
     elsif dealer.busted?
-      message = "THE DEALER WENT BUST, YOU WIN!"
+      message = "#{dealer_name} WENT BUST, YOU WIN!"
       return update_and_display(:player, :full, message)
     elsif dealer.got_21?
-      message = "DEALER GOT 21, AND WINS!"
+      message = "#{dealer_name} GOT 21, AND WINS!"
       return update_and_display(:dealer, :full, message)
     end
     false
@@ -282,7 +314,7 @@ class TwentyOne
       message = "YOU WIN!"
       return update_and_display(:player, :full, message)
     elsif dealer_total > player_total
-      message = "DEALER WINS!"
+      message = "#{dealer.name.upcase} WINS!"
       return update_and_display(:dealer, :full, message)
     elsif dealer_total == player_total
       message = "IT'S A TIE!"
@@ -305,23 +337,6 @@ class TwentyOne
       player.hit(deck.deal_card)
       dealer.hit(deck.deal_card)
     end
-  end
-
-  def valid_name?(name)
-    !!(name =~ /^[A-Z][a-zA-Z]*(-[A-Z][a-zA-Z]*)?$/)
-  end
-
-  def name
-    display_welcome_message
-    human_name = nil
-    loop do
-      puts
-      puts "Please enter your name:"
-      human_name = gets.chomp
-      break if valid_name?(human_name)
-      puts "Sorry, that is not a valid name! Please try again."
-    end
-    human_name
   end
 
   def play_again?
