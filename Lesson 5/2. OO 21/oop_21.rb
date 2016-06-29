@@ -30,9 +30,9 @@ class Card
   end
 
   def insert_value
-    if (1..10).cover?(@face.to_i)
-      @face.to_i
-    elsif @face == "Ace"
+    if (1..10).cover?(face.to_i)
+      face.to_i
+    elsif face == "Ace"
       11
     else
       10
@@ -104,20 +104,20 @@ module Hand
   def show_first_card
     puts format_first_card
     puts
-    puts "#{name}'s total is: #{hand[0].value}"
+    puts "#{name}'s total is: #{hand.first.value}"
     puts
     puts
   end
 
   def format_first_card
-    "#{hand[0].face} of #{hand[0].suit}"
+    "#{hand.first.face} of #{hand.first.suit}"
   end
 end
 
 class Contestant
   include Hand
 
-  attr_accessor :name, :hand, :games_won, :stay_message
+  attr_accessor :name, :hand, :games_won
 
   def initialize
     @name = obtain_name
@@ -234,7 +234,6 @@ module Display
 end
 
 class TwentyOne
-  require 'pry'
   include Display
 
   attr_accessor :deck, :player, :dealer
@@ -256,6 +255,7 @@ class TwentyOne
       display_contestant_hands
 
       if player_turn
+        increment_number_of_games_played
         compare_contestant_scores if dealer_turn
       end
 
@@ -275,7 +275,6 @@ class TwentyOne
   end
 
   def player_turn
-    increment_number_of_games_played
     loop do
       if player.got_21?
         return player_did_get_21
@@ -306,31 +305,33 @@ class TwentyOne
   end
 
   def player_did_get_21
+    increment_number_of_games_played
     message = "YOU GOT 21, YOU ARE THE WINNER!"
     update_and_display(:player, :partial, message)
     false
   end
 
   def player_did_go_bust
-    message = "YOU WENT BUST, #{dealer.name} WINS!"
+    increment_number_of_games_played
+    message = "YOU WENT BUST, #{dealer.name.upcase} WINS!"
     update_and_display(:dealer, :partial, message)
     false
   end
 
   def player_did_stay
-    message = "#{player.name} STAYS!"
+    message = "#{player.name.upcase} STAYS!"
     update_and_display(nil, :full, message)
     true
   end
 
   def dealer_did_get_21
-    message = "#{dealer.name} GOT 21, AND WINS!"
+    message = "#{dealer.name.upcase} GOT 21, AND WINS!"
     update_and_display(:dealer, :full, message)
     false
   end
 
   def dealer_did_go_bust
-    message = "#{dealer.name} WENT BUST, YOU WIN!"
+    message = "#{dealer.name.upcase} WENT BUST, YOU WIN!"
     update_and_display(:player, :full, message)
     false
   end
