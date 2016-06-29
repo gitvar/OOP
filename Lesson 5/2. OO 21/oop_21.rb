@@ -254,9 +254,9 @@ class TwentyOne
       deal_initial_cards
       display_contestant_hands
 
-      if player_turn
+      if player_turn == :stay
         increment_number_of_games_played
-        compare_contestant_scores if dealer_turn
+        compare_contestant_scores if dealer_turn == :stay
       end
 
       break unless play_again?
@@ -296,7 +296,7 @@ class TwentyOne
       elsif dealer.busted?
         return dealer_did_go_bust
       elsif dealer.stays?
-        return true
+        return :stay
       else
         dealer.hit(deck.deal_card)
         display_contestant_hands(:full)
@@ -308,32 +308,32 @@ class TwentyOne
     increment_number_of_games_played
     message = "YOU GOT 21, YOU ARE THE WINNER!"
     update_and_display(:player, :partial, message)
-    false
+    :got_21
   end
 
   def player_did_go_bust
     increment_number_of_games_played
     message = "YOU WENT BUST, #{dealer.name.upcase} WINS!"
     update_and_display(:dealer, :partial, message)
-    false
+    :went_bust
   end
 
   def player_did_stay
     message = "#{player.name.upcase} STAYS!"
     update_and_display(nil, :full, message)
-    true
+    :stay
   end
 
   def dealer_did_get_21
     message = "#{dealer.name.upcase} GOT 21, AND WINS!"
     update_and_display(:dealer, :full, message)
-    false
+    :got_21
   end
 
   def dealer_did_go_bust
     message = "#{dealer.name.upcase} WENT BUST, YOU WIN!"
     update_and_display(:player, :full, message)
-    false
+    :went_bust
   end
 
   def compare_contestant_scores
