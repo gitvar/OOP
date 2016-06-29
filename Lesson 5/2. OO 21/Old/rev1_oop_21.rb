@@ -66,9 +66,9 @@ module Hand
     sum
   end
 
-  def show_hand(full_or_partial_hand = :full)
+  def show_hand(full_or_partial = :full)
     display_hand_heading
-    if full_or_partial_hand == :full
+    if full_or_partial == :full
       show_all_cards
     else
       show_first_card
@@ -93,6 +93,7 @@ module Hand
     puts "#{name}'s total is: #{total}"
     puts @stay_message
     puts
+    @stay_message = ""
   end
 
   def format_cards_for_display
@@ -117,18 +118,13 @@ end
 class Contestant
   include Hand
 
-  attr_accessor :name, :hand, :games_won, :stay_message
+  attr_accessor :name, :hand, :games_won
 
   def initialize
     @name = obtain_name
     @hand = []
     @games_won = 0
     @stay_message = ""
-  end
-
-  def new_game
-    @hand = []
-    @stay_message = ''
   end
 end
 
@@ -145,7 +141,7 @@ class Player < Contestant
     name
   end
 
-  def stays?
+  def stay?
     answer = nil
     loop do
       puts
@@ -170,7 +166,7 @@ class Dealer < Contestant
     %w(Twiki Hal WallE T-1000 CP30).sample
   end
 
-  def stays?
+  def stay?
     @stay_message = "#{name} stays" if total >= DEALER_MAX
     total >= DEALER_MAX
   end
@@ -195,9 +191,9 @@ module Display
     puts "============"
   end
 
-  def display_game_stats
+  def display_game_numbers_info
     puts
-    puts "Games played so far: #{@number_of_games_played}"
+    puts "Games played so far: #{@number_of_games}"
     puts "Games won by #{player.name}: #{player.games_won}"
     puts "Games won by #{dealer.name}: #{dealer.games_won}"
     puts "Games tied so far: #{@number_of_tied_games}"
@@ -206,25 +202,13 @@ module Display
 
   def display_player_hand
     display_game_heading
-    display_game_stats
+    display_game_numbers_info
     player.show_hand
   end
 
-  def display_contestant_hands(full_or_partial_hand = :partial)
+  def display_both_hands(full_or_partial)
     display_player_hand
-    dealer.show_hand(full_or_partial_hand)
-  end
-
-  def display_result(message, winner = nil)
-    message = "#{player.name.upcase}, " + message if winner == :player
-    puts message
-  end
-
-  def update_and_display(winner, full_or_partial_hand, message)
-    update_number_of_games_won(winner)
-    display_contestant_hands(full_or_partial_hand)
-    display_result(message, winner)
-    true
+    dealer.show_hand(full_or_partial)
   end
 
   def display_goodbye_message
@@ -234,7 +218,6 @@ module Display
 end
 
 class TwentyOne
-  require 'pry'
   include Display
 
   attr_accessor :deck, :player, :dealer
@@ -243,7 +226,7 @@ class TwentyOne
     display_welcome_message
     @player = Player.new
     @dealer = Dealer.new
-    @number_of_games_played = 0
+    @number_of_games = 0
     @number_of_tied_games = 0
     prepare_for_new_game
   end
@@ -251,14 +234,12 @@ class TwentyOne
   def start
     loop do
       display_game_heading
-      display_game_stats
+      display_game_numbers_info
       deal_initial_cards
-      display_contestant_hands
-
-      if player_turn
-        compare_contestant_scores if dealer_turn
-      end
-
+      display_both_hands(:partial)
+      player_turn
+      dealer_turn
+      determine_result
       break unless play_again?
       prepare_for_new_game
     end
@@ -270,96 +251,23 @@ class TwentyOne
   def prepare_for_new_game
     @winner = nil
     @deck = Deck.new
-    player.new_game
-    dealer.new_game
+    player.hand = []
+    dealer.hand = []
   end
 
   def player_turn
-    increment_number_of_games_played
     loop do
-      if player.got_21?
-        return player_did_get_21
-      elsif player.busted?
-        return player_did_go_bust
-      elsif player.stays?
-        return player_did_stay
-      else
-        player.hit(deck.deal_card)
-        display_contestant_hands
-      end
+      break if player.got_21? || player.busted? || player.stay?
+      player.hit(deck.deal_card)
+      display_both_hands(:partial)
     end
   end
 
   def dealer_turn
     loop do
-      if dealer.got_21?
-        return dealer_did_get_21
-      elsif dealer.busted?
-        return dealer_did_go_bust
-      elsif dealer.stays?
-        return true
-      else
-        dealer.hit(deck.deal_card)
-        display_contestant_hands(:full)
-      end
+      break if dealer.busted? || dealer.got_21? || dealer.stay?
+      dealer.hit(deck.deal_card)
     end
-  end
-
-  def player_did_get_21
-    message = "YOU GOT 21, YOU ARE THE WINNER!"
-    update_and_display(:player, :partial, message)
-    false
-  end
-
-  def player_did_go_bust
-    message = "YOU WENT BUST, #{dealer.name} WINS!"
-    update_and_display(:dealer, :partial, message)
-    false
-  end
-
-  def player_did_stay
-    message = "#{player.name} STAYS!"
-    update_and_display(nil, :full, message)
-    true
-  end
-
-  def dealer_did_get_21
-    message = "#{dealer.name} GOT 21, AND WINS!"
-    update_and_display(:dealer, :full, message)
-    false
-  end
-
-  def dealer_did_go_bust
-    message = "#{dealer.name} WENT BUST, YOU WIN!"
-    update_and_display(:player, :full, message)
-    false
-  end
-
-  def compare_contestant_scores
-    player_total = player.total
-    dealer_total = dealer.total
-    if player_total > dealer_total
-      player_did_win_on_points
-    elsif dealer_total > player_total
-      dealer_did_win_on_points
-    elsif dealer_total == player_total
-      game_is_a_tie
-    end
-  end
-
-  def player_did_win_on_points
-    message = "YOU WIN!"
-    update_and_display(:player, :full, message)
-  end
-
-  def dealer_did_win_on_points
-    message = "#{dealer.name.upcase} WINS!"
-    update_and_display(:dealer, :full, message)
-  end
-
-  def game_is_a_tie
-    message = "IT'S A TIE!"
-    update_and_display(:tied, :full, message)
   end
 
   def update_number_of_games_won(winner = nil)
@@ -367,13 +275,64 @@ class TwentyOne
       player.games_won += 1
     elsif winner == :dealer
       dealer.games_won += 1
-    elsif winner == :tied
+    else
       @number_of_tied_games += 1
     end
   end
 
-  def increment_number_of_games_played
-    @number_of_games_played += 1
+  def display_result(message, winner = nil)
+    message = "#{player.name.upcase}, " + message if winner == :player
+    puts message
+  end
+
+  def update_and_display(winner, full_or_partial, message)
+    update_number_of_games_won(winner)
+    display_both_hands(full_or_partial)
+    display_result(message, winner)
+    true
+  end
+
+  def results_part_1
+    dealer_name = dealer.name.upcase
+    if player.got_21?
+      message = "YOU GOT 21, YOU ARE THE WINNER!"
+      return update_and_display(:player, :partial, message)
+    elsif player.busted?
+      message = "YOU WENT BUST, #{dealer_name} WINS!"
+      return update_and_display(:dealer, :partial, message)
+    elsif dealer.busted?
+      message = "#{dealer_name} WENT BUST, YOU WIN!"
+      return update_and_display(:player, :full, message)
+    elsif dealer.got_21?
+      message = "#{dealer_name} GOT 21, AND WINS!"
+      return update_and_display(:dealer, :full, message)
+    end
+    false
+  end
+
+  def results_part_2
+    player_total = player.total
+    dealer_total = dealer.total
+    if player_total > dealer_total
+      message = "YOU WIN!"
+      return update_and_display(:player, :full, message)
+    elsif dealer_total > player_total
+      message = "#{dealer.name.upcase} WINS!"
+      return update_and_display(:dealer, :full, message)
+    elsif dealer_total == player_total
+      message = "IT'S A TIE!"
+      return update_and_display(:nil, :full, message)
+    end
+    false
+  end
+
+  def determine_result
+    increment_number_of_games
+    results_part_1 || results_part_2
+  end
+
+  def increment_number_of_games
+    @number_of_games += 1
   end
 
   def deal_initial_cards

@@ -1,0 +1,75 @@
+1. Display welcome screen.
+2. Request human Player name.
+  Loop do
+    3. Display game screen (with partial Dealer hand)
+
+    4. Player turn:
+      player_status = :busy
+      Increment games_played variable
+      while (player_status == :busy) do
+        If Player got 21:
+          Increment Player games_won variable
+          Display Game Screen (partial_dealer_hand)
+          Display Player wins by getting 21 message
+          player_status = :win
+        elsif Player Bust:
+          Increment Dealer games_won variable
+          Display Game Screen (partial_dealer_hand)
+          Display Dealer wins by Player going BUST message
+          player_status = :loose
+        elsif Player stays:
+          Display Game Screen (full_dealer_hand)
+          Display Player stays message
+          player_status = :stay
+          Dealer turn
+        else
+          player.hit
+        end
+      end
+
+    Break if !Play_again?
+    Reset game
+  end
+  Display Goodbye message
+
+5. Dealer turn.
+  dealer_status = :busy
+  While (dealer_status == :busy) do
+    If Dealer got 21:
+      Increment Dealer games_won variable
+      Display Game Screen (full_dealer_hand)
+      Display Dealer wins by getting 21 message
+      dealer_status = :win
+    elsif Dealer Bust:
+      Increment Player games_won variable
+      Display Game Screen (full_dealer_hand)
+      Display Player wins by Dealer going BUST message
+      dealer_status = :bust
+    elsif Dealer >= DEALER_MAX
+      Display Game Screen (full_dealer_hand)
+      Display Dealer stays message
+      Compare_Contestant_Scores
+      dealer_status = :stay
+    else
+      Dealer.hit
+    end
+  end
+
+6. Compare_Contestant_Scores
+  if Player > Dealer
+    Display Player win message
+  elsif Player < Dealer
+    Display Dealer win message
+  else
+    Display Tied message
+  end
+
+7. Game Screen:
+  Display game heading.
+  Display game stats (Number of games: Played, Tied, Player won, Dealer won).
+  Display Player Full hand.
+  if full_dealer_hand
+    Display Dealer's Full hand.
+  else
+    Display Dealer's First Card only for now.
+  end
