@@ -51,8 +51,7 @@ module Hand
   end
 
   def total
-    sum = 0
-    hand.each { |card| sum += card.value }
+    sum = hand.map{ |card| card.value }.reduce(:+)
 
     if sum > WINNING_TOTAL
       hand.each do |card|
@@ -85,9 +84,7 @@ module Hand
   end
 
   def format_cards_for_display
-    hand.map do |card|
-      "#{card.face} of #{card.suit}"
-    end
+    hand.map{ |card| "#{card.face} of #{card.suit}" }
   end
 
   def show_first_card
@@ -109,12 +106,11 @@ class Contestant
 
   def initialize
     @name = obtain_name
-    @hand = []
     @games_won = 0
-    @stay = false
+    setup_new_game
   end
 
-  def new_game
+  def setup_new_game
     @hand = []
     @stay = false
   end
@@ -286,8 +282,8 @@ class TwentyOne
 
   def prepare_for_new_game
     @deck = Deck.new
-    player.new_game
-    dealer.new_game
+    player.setup_new_game
+    dealer.setup_new_game
   end
 
   def player_turn
