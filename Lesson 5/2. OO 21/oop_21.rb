@@ -66,7 +66,7 @@ module Hand
   def show_hand(show_partial = false)
     display_hand_heading
     show_partial ? show_first_card : show_all_cards
-    puts "#{name} chose to stay." if stay?
+    puts "#{name} chose to stay." if stayed?
     puts
   end
 
@@ -119,7 +119,7 @@ class Contestant
     @stay = false
   end
 
-  def stay?
+  def stayed?
     @stay
   end
 end
@@ -202,7 +202,7 @@ module Display
     display_game_heading_and_stats
     player.show_hand
     partial = true
-    partial = false if !player.busted? && player.stay?
+    partial = false if !player.busted? && player.stayed?
     dealer.show_hand(partial)
   end
 
