@@ -51,7 +51,7 @@ module Hand
   end
 
   def total
-    sum = hand.map{ |card| card.value }.reduce(:+)
+    sum = hand.map(&:value).reduce(:+)
 
     if sum > WINNING_TOTAL
       hand.each do |card|
@@ -78,13 +78,13 @@ module Hand
   end
 
   def show_all_cards
-    puts format_cards_for_display
+    puts format_all_cards_for_display
     puts
     puts "#{name}'s total is: #{total}"
   end
 
-  def format_cards_for_display
-    hand.map{ |card| "#{card.face} of #{card.suit}" }
+  def format_all_cards_for_display
+    hand.map { |card| "#{card.face} of #{card.suit}" }
   end
 
   def show_first_card
@@ -153,7 +153,7 @@ end
 
 class Dealer < Contestant
   def obtain_name
-    %w(Twiki Hal WallE T-1000 CP30).sample
+    %w(Twiki Hal WallE The\ Terminator CP30).sample
   end
 
   def stays?
@@ -202,23 +202,21 @@ module Display
     dealer.show_hand(partial)
   end
 
-  def display_busted(result)
+  def display_busted(busted_result)
     winning_name = dealer.name.upcase
     loosing_name = player.name.upcase
 
-    if result == :dealer_busted
+    if busted_result == :dealer_busted
       winning_name = loosing_name
       loosing_name = dealer.name.upcase
     end
     puts "#{loosing_name} WENT BUST! #{winning_name} WINS!"
   end
 
-  def display_winner(result)
+  def display_winner(winning_result)
     winning_name = dealer.name.upcase
+    winning_name = player.name.upcase if winning_result == :player_win
 
-    if result == :player_win
-      winning_name = player.name.upcase
-    end
     puts "#{winning_name} WINS!"
   end
 
