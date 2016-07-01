@@ -20,7 +20,7 @@ class Deck
 end
 
 class Card
-  attr_accessor :suit, :face
+  attr_reader :suit, :face
 
   def initialize(suit, face)
     @suit = suit
@@ -66,6 +66,8 @@ module Hand
   def show_hand(show_partial = false)
     display_hand_heading
     show_partial ? show_first_card : show_all_cards
+    puts "#{name} chose to stay." if stay?
+    puts
   end
 
   private
@@ -80,8 +82,6 @@ module Hand
     puts format_cards_for_display
     puts
     puts "#{name}'s total is: #{total}"
-    puts @stay_message
-    puts
   end
 
   def format_cards_for_display
@@ -94,7 +94,6 @@ module Hand
     puts format_first_card
     puts
     puts "#{name}'s total is: #{hand.first.value}"
-    puts
     puts
   end
 
@@ -112,18 +111,16 @@ class Contestant
     @name = obtain_name
     @hand = []
     @games_won = 0
-    @stay_message = ""
-    @finished = false
+    @stay = false
   end
 
   def new_game
     @hand = []
-    @stay_message = ''
-    @finished = false
+    @stay = false
   end
 
-  def done?
-    @finished
+  def stay?
+    @stay
   end
 end
 
@@ -148,17 +145,13 @@ class Player < Contestant
       break if %w(h s).include?(answer)
       puts "Sorry, that is not a valid choice! Please try again."
     end
-    if answer == 's'
-      @stay_message = "#{name} stays"
-      @finished = true
-    end
-    answer == 's'
+    @stay = answer == 's' ? true : false
   end
 
   private
 
   def valid_name?(name)
-    !!(name =~ /^[A-Z][a-zA-Z]*(-[A-Z][a-zA-Z]*)?$/)
+    !!(name =~ /^[a-zA-Z]*(-[A-Z][a-zA-Z]*)*( [a-zA-Z]*)*$/)
   end
 end
 
@@ -168,8 +161,7 @@ class Dealer < Contestant
   end
 
   def stays?
-    @stay_message = "#{name} stays" if total >= DEALER_MAX
-    total >= DEALER_MAX
+    @stay = total >= DEALER_MAX ? true : false
   end
 end
 
@@ -210,7 +202,7 @@ module Display
     display_game_heading_and_stats
     player.show_hand
     partial = true
-    partial = false if !player.busted? && player.done?
+    partial = false if !player.busted? && player.stay?
     dealer.show_hand(partial)
   end
 
@@ -281,7 +273,7 @@ class TwentyOne
       dealer_turn if !player.busted?
 
       result = determine_result
-      update_game_scores(result)
+      update_game_stats(result)
       display_results(result)
 
       break unless play_again?
@@ -349,7 +341,7 @@ class TwentyOne
     @number_of_games_played += 1
   end
 
-  def update_game_scores(result)
+  def update_game_stats(result)
     increment_number_of_games_played
     update_number_of_games_won(result)
   end
