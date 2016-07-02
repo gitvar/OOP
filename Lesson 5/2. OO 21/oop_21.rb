@@ -154,11 +154,7 @@ class Player < Contestant
       puts "That is not a valid choice! Please try again."
     end
 
-    if reply == 's' || reply == 'stay'
-      :stay
-    else
-      :hit
-    end
+    (reply == 's' || reply == 'stay') ? :stay : :hit
   end
 
   private
@@ -369,7 +365,7 @@ class TwentyOne
       print "=> "
       answer = gets.chomp.downcase
       break if %w(yes y no n).include?(answer)
-      puts "Sorry, that is not a valid answer! Please try again."
+      puts "That is not a valid answer! Please try again."
     end
 
     answer == 'y' || answer == 'yes'
