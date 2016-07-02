@@ -1,7 +1,7 @@
 # frozen_string_literal: false
 class Deck
   CARD_SUITS = %w(Hearts Diamonds Spades Clubs).freeze
-  CARD_FACES = %w(2 3 4 5 6 7 8 9 10 Jack Queen King Ace).freeze
+  CARD_FACES = %w(1 2 3 4 5 6 7 8 9 10 Jack Queen King Ace).freeze
 
   def initialize
     @deck = new_shuffled_deck
@@ -28,7 +28,7 @@ class Card
   end
 
   def value
-    if (2..10).cover?(face.to_i)
+    if (1..10).cover?(face.to_i)
       face.to_i
     elsif face == "Ace"
       11
@@ -62,9 +62,9 @@ module Hand
     sum
   end
 
-  def show_hand(full = true)
+  def show_hand(show_partial = false)
     display_hand_heading
-    full ? show_all_cards : show_first_card
+    show_partial ? show_first_card : show_all_cards
     puts "#{name} chose to stay." if stayed?
     puts
   end
@@ -102,7 +102,7 @@ end
 class Contestant
   include Hand
 
-  attr_accessor :name, :hand, :turn_over, :games_won
+  attr_accessor :name, :hand, :games_won
 
   def initialize
     @name = obtain_name
@@ -112,20 +112,11 @@ class Contestant
 
   def setup_new_game
     @hand = []
-    @turn_over = false
     @stay = false
-  end
-
-  def stay
-    @stay = true
   end
 
   def stayed?
     @stay
-  end
-
-  def turn_over?
-    @turn_over
   end
 end
 
@@ -135,30 +126,22 @@ class Player < Contestant
     loop do
       puts
       puts "Please enter your name:"
-      print "=> "
       name = gets.chomp
       break if valid_name?(name)
-      puts "That is not a valid name! Please try again."
+      puts "Sorry, that is not a valid name! Please try again."
     end
     name
   end
 
-  def input
-    reply = nil
-
+  def stays?
+    answer = nil
     loop do
       puts "(H)it or (S)tay?"
-      print "=> "
-      reply = gets.chomp.downcase
-      break if %w(hit h stay s).include?(reply)
-      puts "That is not a valid choice! Please try again."
+      answer = gets.chomp.downcase
+      break if %w(h s).include?(answer)
+      puts "Sorry, that is not a valid choice! Please try again."
     end
-
-    if reply == 's' || reply == 'stay'
-      :stay
-    else
-      :hit
-    end
+    @stay = answer == 's' ? true : false
   end
 
   private
@@ -173,8 +156,8 @@ class Dealer < Contestant
     %w(Twiki Hal WallE The\ Terminator CP30).sample
   end
 
-  def input
-    total >= DEALER_MAX ? :stay : :hit
+  def stays?
+    @stay = total >= DEALER_MAX ? true : false
   end
 end
 
@@ -214,30 +197,25 @@ module Display
   def display_table
     display_game_heading_and_stats
     player.show_hand
-    full = player.turn_over? && !player.busted?
-    dealer.show_hand(full)
+    partial = true
+    partial = false if !player.busted? && player.stayed?
+    dealer.show_hand(partial)
   end
 
   def display_busted(busted_result)
-    case busted_result
-    when :player_busted
-      winning_name = dealer.name.upcase
-      loosing_name = player.name.upcase
-    else
-      winning_name = player.name.upcase
+    winning_name = dealer.name.upcase
+    loosing_name = player.name.upcase
+
+    if busted_result == :dealer_busted
+      winning_name = loosing_name
       loosing_name = dealer.name.upcase
     end
-
-    puts "#{winning_name} WINS! #{loosing_name} WENT BUST."
+    puts "#{loosing_name} WENT BUST! #{winning_name} WINS!"
   end
 
   def display_winner(winning_result)
-    winning_name = case winning_result
-                   when :player_win
-                     player.name.upcase
-                   else
-                     dealer.name.upcase
-                   end
+    winning_name = dealer.name.upcase
+    winning_name = player.name.upcase if winning_result == :player_win
 
     puts "#{winning_name} WINS!"
   end
@@ -265,6 +243,7 @@ module Display
 end
 
 class TwentyOne
+  require 'pry'
   include Display
 
   attr_accessor :deck, :player, :dealer
@@ -284,8 +263,8 @@ class TwentyOne
       deal_initial_cards
       display_table
 
-      contestant_turn(player)
-      contestant_turn(dealer) if !player.busted?
+      player_turn
+      dealer_turn if !player.busted?
 
       result = determine_result
       update_game_stats(result)
@@ -305,19 +284,27 @@ class TwentyOne
     dealer.setup_new_game
   end
 
-  def contestant_turn(contestant)
+  def player_turn
     loop do
-      if contestant.input == :stay
-        contestant.stay
-        display_table
-        break
+      if player.busted? || player.stays?
+        return
       else
-        contestant.hit(deck.deal_card)
+        player.hit(deck.deal_card)
+        display_table
       end
-      display_table
-      break if contestant.busted?
     end
-    contestant.turn_over = true
+  end
+
+  def dealer_turn
+    loop do
+      if dealer.busted? || dealer.stays?
+        display_table
+        return
+      else
+        dealer.hit(deck.deal_card)
+        display_table
+      end
+    end
   end
 
   def determine_result
@@ -334,7 +321,7 @@ class TwentyOne
     end
   end
 
-  def update_number_of_games_won_or_tied(result)
+  def update_number_of_games_won(result)
     if result == :player_win || result == :dealer_busted
       player.games_won += 1
     elsif result == :dealer_win || result == :player_busted
@@ -350,7 +337,7 @@ class TwentyOne
 
   def update_game_stats(result)
     increment_number_of_games_played
-    update_number_of_games_won_or_tied(result)
+    update_number_of_games_won(result)
   end
 
   def deal_initial_cards
@@ -362,17 +349,14 @@ class TwentyOne
 
   def play_again?
     answer = nil
-
     puts
     loop do
       puts "Do you want to play another game? (Y)es or (N)o?"
-      print "=> "
       answer = gets.chomp.downcase
-      break if %w(yes y no n).include?(answer)
+      break if %w(y n).include?(answer)
       puts "Sorry, that is not a valid answer! Please try again."
     end
-
-    answer == 'y' || answer == 'yes'
+    answer == 'y'
   end
 end
 
