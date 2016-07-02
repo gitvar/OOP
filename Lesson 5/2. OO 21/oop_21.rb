@@ -321,7 +321,7 @@ class TwentyOne
     end
   end
 
-  def update_number_of_games_won_or_tied(result)
+  def update_number_of_games_won(result)
     if result == :player_win || result == :dealer_busted
       player.games_won += 1
     elsif result == :dealer_win || result == :player_busted
@@ -337,7 +337,7 @@ class TwentyOne
 
   def update_game_stats(result)
     increment_number_of_games_played
-    update_number_of_games_won_or_tied(result)
+    update_number_of_games_won(result)
   end
 
   def deal_initial_cards
