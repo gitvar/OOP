@@ -102,7 +102,7 @@ end
 class Contestant
   include Hand
 
-  attr_accessor :name, :hand, :turn_over, :games_won
+  attr_accessor :name, :hand, :games_won
 
   def initialize
     @name = obtain_name
@@ -112,7 +112,6 @@ class Contestant
 
   def setup_new_game
     @hand = []
-    @turn_over = false
     @stay = false
   end
 
@@ -125,7 +124,7 @@ class Contestant
   end
 
   def turn_over?
-    @turn_over
+    busted? || stayed?
   end
 end
 
@@ -143,7 +142,7 @@ class Player < Contestant
     name
   end
 
-  def input
+  def obtain_input
     reply = nil
 
     loop do
@@ -154,7 +153,7 @@ class Player < Contestant
       puts "That is not a valid choice! Please try again."
     end
 
-    (reply == 's' || reply == 'stay') ? :stay : :hit
+    stay if reply == 's' || reply == 'stay'
   end
 
   private
@@ -169,8 +168,8 @@ class Dealer < Contestant
     %w(Twiki Hal WallE The\ Terminator CP30).sample
   end
 
-  def input
-    total >= DEALER_MAX ? :stay : :hit
+  def obtain_input
+    stay if total >= DEALER_MAX
   end
 end
 
@@ -207,51 +206,19 @@ module Display
     display_game_stats
   end
 
+  def show_whole_card?
+    player.turn_over?
+  end
+
   def display_table
     display_game_heading_and_stats
     player.show_hand
-    full = player.turn_over? && !player.busted?
-    dealer.show_hand(full)
+    dealer.show_hand(show_whole_card?)
   end
 
-  def display_busted(busted_result)
-    case busted_result
-    when :player_busted
-      winning_name = dealer.name.upcase
-      loosing_name = player.name.upcase
-    else
-      winning_name = player.name.upcase
-      loosing_name = dealer.name.upcase
-    end
-
-    puts "#{winning_name} WINS! #{loosing_name} WENT BUST."
-  end
-
-  def display_winner(winning_result)
-    winning_name = case winning_result
-                   when :player_win
-                     player.name.upcase
-                   else
-                     dealer.name.upcase
-                   end
-
-    puts "#{winning_name} WINS!"
-  end
-
-  def display_tie
-    puts "IT'S A TIE!"
-  end
-
-  def display_results(result)
+  def display_result(message)
     display_table
-
-    if result == :player_busted || result == :dealer_busted
-      display_busted(result)
-    elsif result == :player_win || result == :dealer_win
-      display_winner(result)
-    elsif result == :tie
-      display_tie
-    end
+    puts message
   end
 
   def display_goodbye_message
@@ -276,7 +243,6 @@ class TwentyOne
 
   def start
     loop do
-      display_game_heading_and_stats
       deal_initial_cards
       display_table
 
@@ -285,7 +251,9 @@ class TwentyOne
 
       result = determine_result
       update_game_stats(result)
-      display_results(result)
+
+      message = determine_result_message(result)
+      display_result(message)
 
       break unless play_again?
       prepare_for_new_game
@@ -303,17 +271,17 @@ class TwentyOne
 
   def contestant_turn(contestant)
     loop do
-      if contestant.input == :stay
-        contestant.stay
+      contestant.obtain_input
+      if contestant.stayed?
         display_table
         break
       else
         contestant.hit(deck.deal_card)
+        display_table
       end
-      display_table
+
       break if contestant.busted?
     end
-    contestant.turn_over = true
   end
 
   def determine_result
@@ -327,6 +295,23 @@ class TwentyOne
       :dealer_win
     else
       :tie
+    end
+  end
+
+  def determine_result_message(result)
+    dealer_name = dealer.name.upcase
+    player_name = player.name.upcase
+    case result
+    when :player_busted
+      "#{dealer_name} WINS! #{player_name} WENT BUST."
+    when :dealer_busted
+      "#{player_name} WINS! #{dealer_name} WENT BUST."
+    when :player_win
+      "#{player_name} WINS!"
+    when :dealer_win
+      "#{dealer_name} WINS!"
+    when :tie
+      "IT'S A TIE!"
     end
   end
 
