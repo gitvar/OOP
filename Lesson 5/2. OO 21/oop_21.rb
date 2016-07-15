@@ -3,8 +3,6 @@ class Deck
   CARD_SUITS = %w(Hearts Diamonds Spades Clubs).freeze
   CARD_FACES = %w(2 3 4 5 6 7 8 9 10 Jack Queen King Ace).freeze
 
-# None
-
   def initialize
     @deck = new_shuffled_deck
   end
