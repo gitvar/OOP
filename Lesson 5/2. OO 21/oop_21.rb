@@ -11,7 +11,7 @@ class Deck
     @deck.pop
   end
 
-  # private
+  private
 
   def new_shuffled_deck
     new_deck = CARD_SUITS.product(CARD_FACES)
