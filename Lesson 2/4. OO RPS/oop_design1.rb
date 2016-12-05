@@ -63,7 +63,9 @@ end
 
 class RPSGame
   include Display
+
   attr_accessor :human, :computer
+
   RPS_choices = {'r' => 'Rock', 'p' => 'Paper', 's' => 'Scissors'}
 
   def initialize

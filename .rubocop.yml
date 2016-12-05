@@ -1,3 +1,5 @@
+# .rubocop.yml
+
 AllCops:
   TargetRubyVersion: 2.3
 
@@ -51,6 +53,10 @@ Style/StringLiterals:
   - single_quotes
   - double_quotes
 
+Style/FrozenStringLiteralComment:
+  Enabled: false
+  Description: Require the addition of the frozen string literal comment.
+
 Style/WhileUntilModifier:
   Description: Favor modifier while/until usage when you have a single-line body.
   StyleGuide: https://github.com/bbatsov/ruby-style-guide#while-as-a-modifier
@@ -78,7 +84,7 @@ Metrics/ClassLength:
 Metrics/LineLength:
   Description: Limit lines to 80 characters.
   StyleGuide: https://github.com/bbatsov/ruby-style-guide#80-character-limits
-  Enabled: false
+  Enabled: true
   Max: 80
   AllowURI: true
   URISchemes:
